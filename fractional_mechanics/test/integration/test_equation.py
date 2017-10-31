@@ -1,116 +1,90 @@
 import unittest
 import numpy as np
 
-import fractulus as fr
 import fdm
+import fractulus as fr
+import fractional_mechanics as fm
 
 
-class LeftCaputoForLinearFunctionStudies(unittest.TestCase):
+class RieszCaputoForLinearDerivative(unittest.TestCase):
+    """
+
+    """
     def setUp(self):
-        self._function = lambda x: x  # f(x) = x
+        values = [[-0.02625],  # *values* are chosen in the way, the first derivative is a linear function
+                  [0.],
+                  [0.02375],
+                  [0.045],
+                  [0.06375],
+                  [0.08],
+                  [0.09375],
+                  [0.105],
+                  [0.11375],
+                  [0.12],
+                  [0.12375],
+                  [0.125],
+                  [0.12375],
+                  [0.12],
+                  [0.11375],
+                  [0.105],
+                  [0.09375],
+                  [0.08],
+                  [0.06375],
+                  [0.045],
+                  [0.02375],
+                  [0.],
+                  [-0.02625]]
 
-    def test_Calculate_AlphaAlmostOne_ConstantValue(self):
+        def get_value(index):
+            index += 1
+            if index >= len(values):
+                index = len(values) - 1
+            return values[index][0]
 
-        alpha = 0.9999
-        test_range = range(1, 15)
+        self._function = get_value
 
-        result = self._compute(alpha, test_range)
+    def test_Calculate_Always_ClassicAndFractionalDerivativeIsEqual(self):
+        alpha = 0.8
+        points = 21.
+        L = 1.
+        h = L / (points - 1)
+        lf = 4
+        test_range = [h * i for i in range(21)]
 
-        expected = [1. for i in test_range]
+        classical, fractional = zip(*self._compute(alpha, lf, h, test_range))
 
-        np.testing.assert_almost_equal(expected, result, decimal=3)
+        def cut_boundary(item):
+            return item[lf: -lf]
 
-    def test_Calculate_AlphaAlmostZero_ReturnLinearFunction(self):
+        np.testing.assert_almost_equal(
+            cut_boundary(classical),
+            cut_boundary(fractional),
+            decimal=3
+        )
 
-        alpha = 0.00001
-        test_range = range(1, 2)
+    def _compute(self, alpha, lf, h, test_range):
+        return [self._compute_for_item(i, lf, h, alpha) for i, value in enumerate(test_range)]
 
-        result = self._compute(alpha, test_range)
-
-        expected = test_range
-
-        np.testing.assert_almost_equal(expected, result, decimal=3)
-
-    def _compute(self, alpha, test_range):
-        return [self._compute_for_item(i, alpha) for i in test_range]
-
-    def _compute_for_item(self, i, alpha):
-        stencil = self._create_derivative(alpha, i)
-        return self._compute_by_stencil(stencil.expand(i), self._function)
+    def _compute_for_item(self, i, lf, h, alpha):
+        fractional_stencil = self._create_fractional_derivative(alpha, lf)
+        classical_stencil = self._create_classic_derivative()
+        return (
+            self._compute_by_stencil(classical_stencil.expand(i), self._function, h),
+            self._compute_by_stencil(fractional_stencil.expand(i), self._function, h)
+        )
 
     @staticmethod
-    def _compute_by_stencil(scheme, function):
-        coefficients = scheme.to_coefficients(1.)
+    def _compute_by_stencil(scheme, function, h):
+        coefficients = scheme.to_coefficients(h)
         return sum([function(node) * weight for node, weight in coefficients.items()])
 
     @staticmethod
-    def _create_derivative(alpha, lf):
-        return fdm.Operator(
-            fr.equation.create_left_caputo_stencil(alpha, lf),
-            fdm.Operator(
-                fdm.Stencil.central(.1)
-            )
-        )
-
-
-class RieszCaputoForLinearDerivativeFunction(unittest.TestCase):
-    def setUp(self):
-        self._function = lambda x: x  # f'(x) = x
-
-    def test_Calculate_AlphaAlmostOne_ValueEqualsClassicalDerivative(self):
-
-        alpha = 0.99999
-        lf = 4
-        test_range = range(0, 15)
-
-        result = self._compute(alpha, lf, test_range)
-
-        expected = [i for i in test_range]
-
-        np.testing.assert_almost_equal(expected, result, decimal=3)
-
-    def test_Calculate_AlphaAlmostZero_ValueEqualsClassicalDerivativeMultipliedByLengthScale(self):
-
-        alpha = 0.000000000001
-        lf = 4
-        test_range = range(0, 15)
-
-        result = self._compute(alpha, lf, test_range)
-
-        expected = [i*lf for i in test_range]
-
-        np.testing.assert_almost_equal(expected, result, decimal=3)
-
-    def test_Calculate_AlphaBetweenZeroAndOne_ValueEqualsClassicalDerivativeMultipliedByFactor(self):
-
-        alpha = 0.8
-        lf = 4
-        test_range = range(0, 15)
-
-        result = self._compute(alpha, lf, test_range)
-
-        factor = lf**(1-alpha)
-        expected = [i*factor for i in test_range]
-
-        np.testing.assert_almost_equal(expected, result, decimal=3)
-
-    def _compute(self, alpha, lf, test_range):
-        return [self._compute_for_item(i, alpha, lf) for i in test_range]
-
-    def _compute_for_item(self, i, alpha, lf):
-        stencil = self._create_derivative(alpha, lf)
-        scheme = stencil.expand(i)
-        return self._compute_by_stencil(scheme)
+    def _create_fractional_derivative(alpha, lf):
+        settings = fr.CaputoSettings(alpha, lf, lf)
+        return fm.create_fractional_deformation_operator(settings)
 
     @staticmethod
-    def _compute_by_stencil(scheme):
-        coefficients = scheme.to_coefficients(1.)
-        return sum([weight for node, weight in coefficients.items()])
-
-    def _create_derivative(self, alpha, lf):
+    def _create_classic_derivative():
         return fdm.Operator(
-            fr.create_riesz_caputo_stencil(
-                fr.CaputoSettings(alpha, lf, lf)
-            ),
-            fdm.Number(self._function)
+            fdm.Stencil.central(1)
         )
