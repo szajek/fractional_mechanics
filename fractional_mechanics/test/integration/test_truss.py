@@ -216,7 +216,7 @@ def _solve_for_fractional(analysis_type, domain, bc_type, settings, load_functio
         analysis_type,
         Model(
             _create_equation(
-                _build_fractional_operator(A=cross_section, E=1, settings=settings),
+                _build_fractional_operator(A=cross_section, E=1., settings=settings),
                 _create_linear_function(length, node_number, a=a, b=b),
             ),
             domain,
