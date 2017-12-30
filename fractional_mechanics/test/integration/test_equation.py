@@ -81,7 +81,7 @@ class RieszCaputoForLinearDerivative(unittest.TestCase):
     @staticmethod
     def _create_fractional_derivative(alpha, lf):
         settings = fr.CaputoSettings(alpha, lf, lf)
-        return fm.create_fractional_deformation_operator(settings)
+        return fm.create_caputo_operator_by_pattern(settings)
 
     @staticmethod
     def _create_classic_derivative():

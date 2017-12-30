@@ -6,7 +6,7 @@ from fdm.equation import Operator, Stencil, Number, LinearEquationTemplate, Node
 from fdm.model import create_bc, Model
 from fdm.system import solve
 from fractulus.equation import CaputoSettings
-from fractional_mechanics.equation import create_fractional_deformation_operator
+from fractional_mechanics.strains import create_caputo_operator_by_pattern
 
 
 def _create_linear_function(length, node_number, a, b):
@@ -32,7 +32,7 @@ def _create_equation(linear_operator, free_vector):
 def _build_fractional_operator(E, A, settings):
     return Operator(
         Stencil.central(1.),
-        Number(A) * Number(E) * create_fractional_deformation_operator(settings)
+        Number(A) * Number(E) * create_caputo_operator_by_pattern(settings)
     )
 
 
