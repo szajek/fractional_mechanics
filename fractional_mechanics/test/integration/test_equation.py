@@ -2,59 +2,33 @@ import unittest
 import numpy as np
 
 import fdm
+from fdm.geometry import Point
 import fractulus as fr
 import fractional_mechanics as fm
 
+import fractional_mechanics
+import fractulus
+
 
 class RieszCaputoForLinearDerivative(unittest.TestCase):
-    """
-
-    """
     def setUp(self):
-        values = [[-0.02625],  # *values* are chosen in the way, the first derivative is a linear function
-                  [0.],
-                  [0.02375],
-                  [0.045],
-                  [0.06375],
-                  [0.08],
-                  [0.09375],
-                  [0.105],
-                  [0.11375],
-                  [0.12],
-                  [0.12375],
-                  [0.125],
-                  [0.12375],
-                  [0.12],
-                  [0.11375],
-                  [0.105],
-                  [0.09375],
-                  [0.08],
-                  [0.06375],
-                  [0.045],
-                  [0.02375],
-                  [0.],
-                  [-0.02625]]
 
-        def get_value(index):
-            index += 1
-            if index >= len(values):
-                index = len(values) - 1
-            return values[index][0]
+        def quadratic_polynomial(point):
+            return point.x*(point.x - 1)  # *values* are chosen in the way, the first derivative is a linear function
 
-        self._function = get_value
+        self._function = quadratic_polynomial
 
     def test_Calculate_Always_ClassicAndFractionalDerivativeIsEqual(self):
-        alpha = 0.8
-        points = 21.
-        L = 1.
-        h = L / (points - 1)
-        lf = 4
-        test_range = [h * i for i in range(21)]
 
-        classical, fractional = zip(*self._compute(alpha, lf, h, test_range))
+        lenght_scale = 4
+        test_range = range(21)
+
+        settings = fr.CaputoSettings(alpha=0.8, lf=lenght_scale, resolution=4)
+
+        classical, fractional = zip(*self._compute(settings, test_range))
 
         def cut_boundary(item):
-            return item[lf: -lf]
+            return item[lenght_scale: -lenght_scale]
 
         np.testing.assert_almost_equal(
             cut_boundary(classical),
@@ -62,29 +36,33 @@ class RieszCaputoForLinearDerivative(unittest.TestCase):
             decimal=3
         )
 
-    def _compute(self, alpha, lf, h, test_range):
-        return [self._compute_for_item(i, lf, h, alpha) for i, value in enumerate(test_range)]
+    def _compute(self, settings, test_range):
+        return [self._compute_for_item(i, settings) for i, value in enumerate(test_range)]
 
-    def _compute_for_item(self, i, lf, h, alpha):
-        fractional_stencil = self._create_fractional_derivative(alpha, lf)
-        classical_stencil = self._create_classic_derivative()
+    def _compute_for_item(self, i, settings):
         return (
-            self._compute_by_stencil(classical_stencil.expand(i), self._function, h),
-            self._compute_by_stencil(fractional_stencil.expand(i), self._function, h)
+            self._compute_by_stencil(
+                self._create_classic_derivative().expand(Point(i)),
+                self._function
+            ),
+            self._compute_by_stencil(
+                self._create_fractional_derivative(settings).expand(Point(i)),
+                self._function
+            )
         )
 
     @staticmethod
-    def _compute_by_stencil(scheme, function, h):
-        coefficients = scheme.to_coefficients(h)
-        return sum([function(node) * weight for node, weight in coefficients.items()])
+    def _compute_by_stencil(scheme, function):
+        return sum([function(node) * weight for node, weight in scheme.items()])
 
     @staticmethod
-    def _create_fractional_derivative(alpha, lf):
-        settings = fr.CaputoSettings(alpha, lf, lf)
-        return fm.create_caputo_operator_by_pattern(settings)
+    def _create_fractional_derivative(settings):
+        return fm.create_riesz_caputo_operator_by_pattern(settings, "CCC", settings.lf / settings.resolution)
 
     @staticmethod
     def _create_classic_derivative():
         return fdm.Operator(
             fdm.Stencil.central(1)
         )
+
+

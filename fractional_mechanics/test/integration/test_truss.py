@@ -1,25 +1,33 @@
 import unittest
-import numpy as np
 
-from fdm.domain import Grid1DBuilder
-from fdm.equation import Operator, Stencil, Number, LinearEquationTemplate, NodeFunction
-from fdm.model import create_bc, Model
+import dicttools
+import numpy as np
+import itertools
+
+from fdm.mesh import Mesh1DBuilder
+from fdm.equation import Operator, Stencil, Number, LinearEquationTemplate
+from fdm.geometry import Point
+from fdm.model import create_bc, Model, VirtualNodeStrategy
 from fdm.system import solve
 from fractulus.equation import CaputoSettings
-from fractional_mechanics.strains import create_caputo_operator_by_pattern
+from fractional_mechanics.strains import create_riesz_caputo_operator_by_pattern
 
 
-def _create_linear_function(length, node_number, a, b):
-    def calc(node_address):
-        x = (node_address / (node_number - 1) * length)
-        return a*x + b
+def _create_linear_function(a, b):
+    def calc(point):
+        return a*point.x + b
     return calc
 
 
-def _create_domain(length, node_number):
-    domain_builder = Grid1DBuilder(length)
-    domain_builder.add_uniformly_distributed_nodes(node_number)
-    return domain_builder.create()
+def _create_mesh(length, node_number, virtual_nodes_number=2):
+    dx = length / (node_number - 1)
+    builder = Mesh1DBuilder(length)
+    builder.add_uniformly_distributed_nodes(node_number)
+    builder.add_virtual_nodes(*itertools.chain(
+        [-(i+1)*dx for i in range(virtual_nodes_number)],
+        [length + (i+1)*dx for i in range(virtual_nodes_number)]
+    ))
+    return builder.create()
 
 
 def _create_equation(linear_operator, free_vector):
@@ -29,24 +37,24 @@ def _create_equation(linear_operator, free_vector):
     )
 
 
-def _build_fractional_operator(E, A, settings):
+def _build_fractional_operator(E, A, approx_span, settings):
     return Operator(
-        Stencil.central(1.),
-        Number(A) * Number(E) * create_caputo_operator_by_pattern(settings)
+        Stencil.central(approx_span),
+        Number(A) * Number(E) * create_riesz_caputo_operator_by_pattern(settings, "CCC", approx_span)
     )
 
 
-def _create_fixed_and_free_end_bc(node_number):
+def _create_fixed_and_free_end_bc(length, approx_span):
     return {
-        0: create_bc('dirichlet', value=0.),
-        node_number - 1: create_bc('neumann', Stencil.backward(), value=0.)
+        Point(0): create_bc('dirichlet', value=0.),
+        Point(length): create_bc('neumann', Stencil.backward(span=approx_span), value=0.)
     }
 
 
-def _create_fixed_ends_bc(node_number):
+def _create_fixed_ends_bc(length, approx_span):
     return {
-        0: create_bc('dirichlet', value=0.),
-        node_number - 1: create_bc('dirichlet', value=0.)
+        Point(0): create_bc('dirichlet', value=0.),
+        Point(length): create_bc('dirichlet', value=0.)
     }
 
 
@@ -56,16 +64,25 @@ _bcs = {
 }
 
 
-def _create_bc(_type, node_number):
-    return _bcs[_type](node_number)
+def _create_bc(_type, length, approx_span):
+    return _bcs[_type](length, approx_span)
+
+
+def _create_virtual_nodes_bc(strategy, length, span, virtual_points_number):
+    xs = [(i + 1)*span for i in range(virtual_points_number)]
+    coords = itertools.chain(*[(-x, x) for x in xs])
+    return {Point(x if x <0. else length + x): create_bc('virtual_node', x, strategy) for x in coords}
 
 
 class TrussStaticEquationFractionalDifferencesTest(unittest.TestCase):
     def test_ConstantSection_ReturnCorrectDisplacement(self):
-        domain = _create_domain(length=1., node_number=6)
-        settings = CaputoSettings(0.99999, .5, 5)
+        node_number = 6
+        length = 1.
+        mesh = _create_mesh(length=length, node_number=node_number)
+        approx_span = length/(node_number - 1)
+        settings = CaputoSettings(0.99999, .1, 5)
 
-        results = _solve_for_fractional('linear_system_of_equations', domain, 'fixed_free', settings, load_function_coefficients=(-1., 0.))
+        results = _solve_for_fractional('linear_system_of_equations', mesh, approx_span, 'fixed_free', 2, settings, load_function_coefficients=(-1., 0.))
 
         expected = np.array(
                 [
@@ -81,10 +98,13 @@ class TrussStaticEquationFractionalDifferencesTest(unittest.TestCase):
         np.testing.assert_allclose(expected, results, atol=1e-4)
 
     def test_ConstantSectionFixedEnds_Alpha05_ReturnCorrectDisplacement(self):
-        domain = _create_domain(length=1., node_number=6)
-        settings = CaputoSettings(0.5, 3, 3)
+        node_number = 6
+        length = 1.
+        mesh = _create_mesh(length=length, node_number=node_number, virtual_nodes_number=4)
+        approx_span = length / (node_number - 1)
+        settings = CaputoSettings(0.5, 0.6, 3)
 
-        result = _solve_for_fractional('linear_system_of_equations', domain, 'fixed_fixed', settings, load_function_coefficients=(0., -1.))
+        result = _solve_for_fractional('linear_system_of_equations', mesh, approx_span, 'fixed_fixed', 4, settings, load_function_coefficients=(0., -1.))
 
         expected = np.array(
             [[9.41385462e-16],
@@ -98,10 +118,13 @@ class TrussStaticEquationFractionalDifferencesTest(unittest.TestCase):
         np.testing.assert_allclose(expected, result, atol=1e-4)
 
     def test_ConstantSectionFixedEnds_Alpha03_ReturnCorrectDisplacement(self):
-        domain = _create_domain(length=1., node_number=6)
-        settings = CaputoSettings(0.3, 3, 3)
+        node_number = 6
+        length = 1.
+        mesh = _create_mesh(length=length, node_number=node_number, virtual_nodes_number=3)
+        approx_span = length / (node_number - 1)
+        settings = CaputoSettings(0.3, 0.6, 3)
 
-        result = _solve_for_fractional('linear_system_of_equations', domain, 'fixed_fixed', settings, load_function_coefficients=(0., -1.))
+        result = _solve_for_fractional('linear_system_of_equations', mesh, approx_span, 'fixed_fixed', 3, settings, load_function_coefficients=(0., -1.))
 
         expected = np.array(
             [[5.46428567e-16],
@@ -115,10 +138,13 @@ class TrussStaticEquationFractionalDifferencesTest(unittest.TestCase):
         np.testing.assert_allclose(expected, result, atol=1e-4)
 
     def test_ConstantSectionFixedEnds_AlphaAlmostOne_ReturnCorrectDisplacement(self):
-        domain = _create_domain(length=1., node_number=6)
-        settings = CaputoSettings(0.9999, 3, 3)
+        node_number = 6
+        length = 1.
+        mesh = _create_mesh(length=length, node_number=node_number, virtual_nodes_number=3)
+        approx_span = length / (node_number - 1)
+        settings = CaputoSettings(0.9999, 0.6, 3)
 
-        result = _solve_for_fractional('linear_system_of_equations', domain, 'fixed_fixed', settings, load_function_coefficients=(0., -1.))
+        result = _solve_for_fractional('linear_system_of_equations', mesh, approx_span, 'fixed_fixed', 3, settings, load_function_coefficients=(0., -1.))
 
         expected = np.array(
             [[8.88464753e-17],
@@ -133,10 +159,13 @@ class TrussStaticEquationFractionalDifferencesTest(unittest.TestCase):
 
     def test_ConstantSectionFixedEnds_LfDifferentThanResolutionAndAlpha05_ReturnCorrectDisplacement(self):
 
-        domain = _create_domain(length=1., node_number=6)
-        settings = CaputoSettings(0.5, 2.5, 6)
+        node_number = 6
+        length = 1.
+        mesh = _create_mesh(length=length, node_number=node_number, virtual_nodes_number=3)
+        approx_span = length / (node_number - 1)
+        settings = CaputoSettings(0.5, 0.5, 6)
 
-        result = _solve_for_fractional('linear_system_of_equations', domain, 'fixed_fixed', settings, load_function_coefficients=(0., -1.))
+        result = _solve_for_fractional('linear_system_of_equations', mesh, approx_span, 'fixed_fixed', 3, settings, load_function_coefficients=(0., -1.))
 
         expected = np.array(
             [[-2.79921788e-16],
@@ -150,10 +179,13 @@ class TrussStaticEquationFractionalDifferencesTest(unittest.TestCase):
         np.testing.assert_allclose(expected, result, atol=1e-4)
 
     def test_ConstantSectionFixedEnds_LfDifferentThanResolutionAndAlpha03_ReturnCorrectDisplacement(self):
-        domain = _create_domain(length=1., node_number=6)
-        settings = CaputoSettings(0.3, 2.5, 6)
+        node_number = 6
+        length = 1.
+        mesh = _create_mesh(length=length, node_number=node_number, virtual_nodes_number=3)
+        approx_span = length / (node_number - 1)
+        settings = CaputoSettings(0.3, 0.5, 6)
 
-        result = _solve_for_fractional('linear_system_of_equations', domain, 'fixed_fixed', settings, load_function_coefficients=(0., -1.))
+        result = _solve_for_fractional('linear_system_of_equations', mesh, approx_span, 'fixed_fixed', 3, settings, load_function_coefficients=(0., -1.))
 
         expected = np.array(
             [[1.42549063e-16],
@@ -168,10 +200,13 @@ class TrussStaticEquationFractionalDifferencesTest(unittest.TestCase):
 
     def test_ConstantSectionFixedEnds_LfDifferentThanResolutionAndAlphaAlmostOne_ReturnCorrectDisplacement(self):
 
-        domain = _create_domain(length=1., node_number=6)
-        settings = CaputoSettings(0.9999, 2.5, 6)
+        node_number = 6
+        length = 1.
+        mesh = _create_mesh(length=length, node_number=node_number, virtual_nodes_number=3)
+        approx_span = length / (node_number - 1)
+        settings = CaputoSettings(0.9999, 0.5, 6)
 
-        result = _solve_for_fractional('linear_system_of_equations', domain, 'fixed_fixed', settings, load_function_coefficients=(0., -1.))
+        result = _solve_for_fractional('linear_system_of_equations', mesh, approx_span, 'fixed_fixed', 3, settings, load_function_coefficients=(0., -1.))
 
         expected = np.array(
             [[7.10756467e-17],
@@ -186,14 +221,15 @@ class TrussStaticEquationFractionalDifferencesTest(unittest.TestCase):
 
     def test_VariedSection_Always_ReturnCorrectDisplacement(self):
 
-        length, node_number = 1., 6
-        domain = _create_domain(length, node_number)
-        settings = CaputoSettings(0.9999, .5, 5)
+        node_number = 6
+        length = 1.
+        mesh = _create_mesh(length=length, node_number=node_number, virtual_nodes_number=3)
+        approx_span = length / (node_number - 1)
+        settings = CaputoSettings(0.9999, 0.1, 5)
 
-        result = _solve_for_fractional('linear_system_of_equations', domain, 'fixed_free', settings, load_function_coefficients=(0., -1.),
-                                       cross_section=NodeFunction.with_linear_interpolator(
-                                           _create_linear_function(length, node_number, -1. / length, 2.)
-                                       ))
+        result = _solve_for_fractional('linear_system_of_equations', mesh, approx_span, 'fixed_free', 3, settings, load_function_coefficients=(0., -1.),
+                                       cross_section=_create_linear_function(-1. / length, 2.)
+                                       )
 
         expected = np.array(
             [[-3.92668354e-16],
@@ -208,30 +244,33 @@ class TrussStaticEquationFractionalDifferencesTest(unittest.TestCase):
         np.testing.assert_allclose(expected, result, atol=1e-4)
 
 
-def _solve_for_fractional(analysis_type, domain, bc_type, settings, load_function_coefficients, cross_section=1.):
+def _solve_for_fractional(analysis_type, mesh, approx_span, bc_type, virtual_points_number, settings, load_function_coefficients, cross_section=1.):
     a, b = load_function_coefficients
-    node_number = len(domain.nodes)
-    length = domain.boundary_box.dimensions[0]
+    length = mesh.boundary_box.dimensions[0]
     return solve(
         analysis_type,
         Model(
             _create_equation(
-                _build_fractional_operator(A=cross_section, E=1., settings=settings),
-                _create_linear_function(length, node_number, a=a, b=b),
+                _build_fractional_operator(A=cross_section, E=1., approx_span=approx_span, settings=settings),
+                _create_linear_function(a=a, b=b),
             ),
-            domain,
-            _create_bc(bc_type, node_number))
+            mesh,
+            dicttools.merge(
+                _create_bc(bc_type, length, approx_span),
+                _create_virtual_nodes_bc(VirtualNodeStrategy.SYMMETRY, length, approx_span, virtual_points_number),
+            )
+        )
     )
 
 
 class TrussDynamicEigenproblemEquationFractionalDifferencesTest(TrussStaticEquationFractionalDifferencesTest):
     @unittest.skip("No result to compare")
     def test_ConstantSectionAndYoung_ReturnCorrectDisplacement(self):  # todo: compute result to compare
-        domain = _create_domain(length=1., node_number=101)
+        mesh = _create_mesh(length=1., node_number=101)
         settings = CaputoSettings(0.8, 10, 10)
         ro = 2.
 
-        result = _solve_for_fractional('eigenproblem', domain, 'fixed_fixed', settings,
+        result = _solve_for_fractional('eigenproblem', mesh, 'fixed_fixed', 3, settings,
                                        load_function_coefficients=(0., -ro))
 
         expected = np.array(
