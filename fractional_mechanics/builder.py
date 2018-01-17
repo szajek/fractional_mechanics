@@ -163,8 +163,8 @@ class Truss1d(Truss1d):
                 self._span
             ).to_stencil(Point(0))
 
-        def create_id(address):
-            return dynamic_lf(address), dynamic_resolution(address)
+        def create_id(point):
+            return dynamic_lf(point), dynamic_resolution(point)
 
         return create_cached_factory(create_stencil, create_id)
 
