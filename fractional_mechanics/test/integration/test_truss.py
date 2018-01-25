@@ -3,8 +3,7 @@ import unittest
 import numpy as np
 
 import fractional_mechanics.builder as builder
-from fdm.model import VirtualBoundaryStrategy
-from fdm.system import solve
+from fdm.analysis import solve, AnalysisType
 
 
 class TrussStaticEquationFractionalDifferencesTest(unittest.TestCase):
@@ -19,7 +18,7 @@ class TrussStaticEquationFractionalDifferencesTest(unittest.TestCase):
                 .add_virtual_nodes(2, 2)
                 .set_field(builder.FieldType.LINEAR, a=1.)
                 .set_boundary(builder.Side.RIGHT, builder.BoundaryType.FREE)
-                .set_virtual_boundary_strategy(VirtualBoundaryStrategy.AS_AT_BORDER)
+                .set_virtual_boundary_strategy(builder.VirtualBoundaryStrategy.AS_AT_BORDER)
         ).create()
 
         result = self._solve(model)
@@ -175,7 +174,7 @@ class TrussStaticEquationFractionalDifferencesTest(unittest.TestCase):
                 .add_virtual_nodes(3, 3)
                 .set_field(builder.FieldType.CONSTANT, m=1.)
                 .set_young_modulus(young_modulus)
-                .set_virtual_boundary_strategy(VirtualBoundaryStrategy.AS_AT_BORDER)
+                .set_virtual_boundary_strategy(builder.VirtualBoundaryStrategy.AS_AT_BORDER)
         ).create()
 
         result = self._solve(model)
@@ -194,15 +193,16 @@ class TrussStaticEquationFractionalDifferencesTest(unittest.TestCase):
 
     def _create_predefined_builder(self):
         return (
-            builder.Truss1d(self._length, self._node_number)
+            builder.create(self._length, self._node_number)
+                .set_analysis_type('SYSTEM_OF_LINEAR_EQUATIONS')
                 .set_boundary(builder.Side.LEFT, builder.BoundaryType.FIXED)
                 .set_boundary(builder.Side.RIGHT, builder.BoundaryType.FIXED)
                 .set_load(builder.LoadType.MASS)
-                .set_virtual_boundary_strategy(VirtualBoundaryStrategy.SYMMETRY)
+                .set_virtual_boundary_strategy(builder.VirtualBoundaryStrategy.SYMMETRY)
         )
 
     def _solve(self, model):
-        return solve('linear_system_of_equations', model).displacement
+        return solve(AnalysisType.SYSTEM_OF_LINEAR_EQUATIONS, model).displacement
 
 
 class TrussDynamicEigenproblemEquationFractionalDifferencesTest(unittest.TestCase):
@@ -230,7 +230,7 @@ class TrussDynamicEigenproblemEquationFractionalDifferencesTest(unittest.TestCas
 
     def _create_predefined_builder(self):
         return (
-            builder.Truss1d(self._length, self._node_number)
+            builder.create(self._length, self._node_number)
                 .set_boundary(builder.Side.LEFT, builder.BoundaryType.FIXED)
                 .set_boundary(builder.Side.RIGHT, builder.BoundaryType.FIXED)
                 .set_load(builder.LoadType.MASS)
@@ -238,5 +238,5 @@ class TrussDynamicEigenproblemEquationFractionalDifferencesTest(unittest.TestCas
         )
 
     def _solve(self, model):
-        return solve('eigenproblem', model).displacement
+        return solve(AnalysisType.EIGENPROBLEM, model).displacement
 
