@@ -208,35 +208,48 @@ class TrussStaticEquationFractionalDifferencesTest(unittest.TestCase):
 class TrussDynamicEigenproblemEquationFractionalDifferencesTest(unittest.TestCase):
     def setUp(self):
         self._length = 1.
-        self._node_number = 101
+        self._node_number = 11
 
-    @unittest.skip("No result to compare")
-    def test_ConstantSectionAndYoung_ReturnCorrectDisplacement(self):  # todo: compute result to compare
-        ro = 2.
+    def test_ConstantSectionAndYoung_ReturnCorrectEigenValuesAndVectors(self):
+
         model = (
             self._create_predefined_builder()
-                .set_fractional_settings(0.8, 10, 10)
-                .add_virtual_nodes(3, 3)
-                .set_field(builder.FieldType.CONSTANT, m=ro)
+                .set_fractional_settings(0.999999, 0.1, 4)
+                .add_virtual_nodes(1, 1)
         ).create()
 
         result = self._solve(model)
 
-        expected = np.array(
-            [0., ],  # no result to compare
+        expected_eigenvectors = np.array(
+            [
+                [0., 0.309017, 0.587785, 0.809017, 0.951057, 1., 0.951057, 0.809017, 0.587785, 0.309017, 0.],
+                [0., 0.618034, 1., 1., 0.618034, 0., -0.618034, -1., -1., -0.618034, 0.],
+                [0., 0.809017, 0.951057, 0.309017, -0.587785, -1., -0.587785, 0.309017, 0.951057, 0.809017, 0.]
+            ]
         )
+        expected_eigenvalues = [
+            9.7887,
+            38.197,
+            82.443,
+        ]  # rad/s
 
-        np.testing.assert_allclose(expected, result, atol=1e-4)
+        for i, (expected_value, expected_vector) in enumerate(zip(expected_eigenvalues, expected_eigenvectors)):
+            self.assertAlmostEqual(expected_value, result.eigenvalues[i], places=3)
+            np.testing.assert_allclose(expected_vector, result.eigenvectors[i], atol=1e-5)
 
     def _create_predefined_builder(self):
         return (
             builder.create(self._length, self._node_number)
+                .set_analysis_type('EIGENPROBLEM')
+                .set_young_modulus(1.)
                 .set_boundary(builder.Side.LEFT, builder.BoundaryType.FIXED)
                 .set_boundary(builder.Side.RIGHT, builder.BoundaryType.FIXED)
                 .set_load(builder.LoadType.MASS)
-                .set_virtual_boundary_strategy(VirtualBoundaryStrategy.SYMMETRY)
+                .set_operator_dispatcher_strategy('standard')
+                .set_fractional_operator_pattern(central="FCB", backward="BBB", forward="FFF")
+                .set_virtual_boundary_strategy(builder.VirtualBoundaryStrategy.SYMMETRY)
         )
 
     def _solve(self, model):
-        return solve(AnalysisType.EIGENPROBLEM, model).displacement
+        return solve(AnalysisType.EIGENPROBLEM, model)
 
