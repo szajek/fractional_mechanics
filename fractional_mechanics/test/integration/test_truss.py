@@ -210,7 +210,7 @@ class TrussDynamicEigenproblemEquationFractionalDifferencesTest(unittest.TestCas
         self._length = 1.
         self._node_number = 11
 
-    def test_ConstantSectionAndYoung_ReturnCorrectEigenValuesAndVectors(self):
+    def test_AlphaAlmostToOne_ReturnCorrectEigenValuesAndVectors(self):
 
         model = (
             self._create_predefined_builder()
@@ -231,6 +231,33 @@ class TrussDynamicEigenproblemEquationFractionalDifferencesTest(unittest.TestCas
             9.7887,
             38.197,
             82.443,
+        ]  # rad/s
+
+        for i, (expected_value, expected_vector) in enumerate(zip(expected_eigenvalues, expected_eigenvectors)):
+            self.assertAlmostEqual(expected_value, result.eigenvalues[i], places=3)
+            np.testing.assert_allclose(expected_vector, result.eigenvectors[i], atol=1e-5)
+
+    def test_AlphaEqualsZeroFive_ReturnCorrectEigenValuesAndVectors(self):
+
+        model = (
+            self._create_predefined_builder()
+                .set_fractional_settings(0.5, 0.1, 4)
+                .add_virtual_nodes(1, 1)
+        ).create()
+
+        result = self._solve(model)
+
+        expected_eigenvectors = np.array(  # note: results obtained from simulation - not confirmed
+            [
+                [0., 0.364569, 0.61176, 0.8227, 0.954241, 1., 0.954241, 0.8227, 0.61176, 0.364569, 0.],
+                [0., 0.71529, 1., 0.973215, 0.590133, 0., -0.590133, -0.973215, -1., -0.71529, 0.],
+                [0., 0.937754, 0.897694, 0.242287, -0.618689, -1., -0.618689, 0.242287, 0.897694, 0.937754, 0.]
+            ]
+        )
+        expected_eigenvalues = [  # note: results obtained from simulation - not confirmed
+            8.9793402824906465,
+            33.613075188092054,
+            67.755313752691023,
         ]  # rad/s
 
         for i, (expected_value, expected_vector) in enumerate(zip(expected_eigenvalues, expected_eigenvectors)):
