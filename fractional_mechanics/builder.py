@@ -43,26 +43,9 @@ def create_step_vanish_length_scale_corrector(length, init_value, min_value, spa
     return correct
 
 
-def create_user_length_scale_corrector(length, init_value, callable):
-    return callable
-
-
-def create_null_length_scale_corrector(length, init_value, *args, **kwargs):
-    def do_nothing(point):
-        return init_value
-
-    return do_nothing
-
-
-def cached_corrector(factory):
-    return lambda *args, **kwargs: create_cached_factory(factory(*args, **kwargs), lambda point: point)
-
-
-LENGTH_SCALES_CORRECTORS = {
-    'vanish': cached_corrector(create_vanish_length_scale_corrector),
-    'step_vanish': cached_corrector(create_step_vanish_length_scale_corrector),
-    'user': cached_corrector(create_user_length_scale_corrector),
-    'null': cached_corrector(create_null_length_scale_corrector),
+LENGTH_SCALES_CONTROLLERS = {
+    'vanish': create_vanish_length_scale_corrector,
+    'step_vanish': create_step_vanish_length_scale_corrector,
 }
 
 
@@ -117,9 +100,7 @@ class FractionalStiffnessSchemeFactory(StiffnessSchemeFactory):
         }
 
     def _create_fractional_operator_builder(self, pattern):
-        _type, args, kwargs = self._context['length_scale_corrector']
-        dynamic_lf = LENGTH_SCALES_CORRECTORS[_type](
-            self._length, self._context['length_scale'], *args, **kwargs)
+        dynamic_lf = self._context['length_scale']
 
         def dynamic_resolution(point):
             return int(dynamic_lf(point) / self._span) if self._context['resolution'] is None else self._context['resolution']
@@ -144,28 +125,36 @@ class FractionalTruss1d(Truss1d):
         self._boundary_builder = boundary_equation_builder
 
         self._context['alpha'] = 0.8
-        self._context['length_scale'] = length * 0.1
         self._context['resolution'] = None
 
-        self._context['length_scale_corrector'] = 'null', (), {}
+        default_length_scale = length * 0.1
+        self._context['length_scale'] = UniformValueController(default_length_scale)
         self._context['fractional_operator_pattern'] = {
             'central': "CCC",
             'backward': "CCC",
             'forward': "CCC",
         }
 
-    def set_fractional_settings(self, alpha, length_scale, resolution):
+    def set_fractional_settings(self, alpha, resolution):
         self._context['alpha'] = alpha
-        self._context['length_scale'] = length_scale
         self._context['resolution'] = resolution
+        return self
+
+    def set_length_scale_controller(self, _type, *args, **kwargs):
+
+        if _type in LENGTH_SCALES_CONTROLLERS:
+            dynamic_lf = UserValueController(
+                LENGTH_SCALES_CONTROLLERS[_type](
+                    self._length, *args, **kwargs)
+            )
+        else:
+            dynamic_lf = VALUE_CONTROLLERS[_type](*args, **kwargs)
+
+        self._context['length_scale'] = dynamic_lf
         return self
 
     def set_fractional_operator_pattern(self, **kwargs):
         self._context['fractional_operator_pattern'].update(kwargs)
-        return self
-
-    def set_length_scale_corrector(self, _type, *args, **kwargs):
-        self._context['length_scale_corrector'] = _type, args, kwargs
         return self
 
     def create(self):

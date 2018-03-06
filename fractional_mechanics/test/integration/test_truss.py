@@ -14,7 +14,8 @@ class TrussStaticEquationFractionalDifferencesTest(unittest.TestCase):
     def test_ConstantSection_ReturnCorrectDisplacement(self):
         model = (
             self._create_predefined_builder()
-                .set_fractional_settings(0.99999, .1, 5)
+                .set_fractional_settings(0.99999, 5)
+                .set_length_scale_controller('uniform', .1)
                 .add_virtual_nodes(2, 2)
                 .set_field(builder.FieldType.LINEAR, a=1.)
                 .set_boundary(builder.Side.RIGHT, builder.BoundaryType.FREE)
@@ -39,7 +40,8 @@ class TrussStaticEquationFractionalDifferencesTest(unittest.TestCase):
     def test_ConstantSectionFixedEnds_Alpha05_ReturnCorrectDisplacement(self):
         model = (
             self._create_predefined_builder()
-                .set_fractional_settings(0.5, 0.6, 3)
+                .set_fractional_settings(0.5, 3)
+                .set_length_scale_controller('uniform', 0.6)
                 .add_virtual_nodes(4, 4)
                 .set_field(builder.FieldType.CONSTANT, m=1.)
         ).create()
@@ -60,7 +62,8 @@ class TrussStaticEquationFractionalDifferencesTest(unittest.TestCase):
     def test_ConstantSectionFixedEnds_Alpha03_ReturnCorrectDisplacement(self):
         model = (
             self._create_predefined_builder()
-                .set_fractional_settings(0.3, 0.6, 3)
+                .set_fractional_settings(0.3, 3)
+                .set_length_scale_controller('uniform', 0.6)
                 .add_virtual_nodes(3, 3)
                 .set_field(builder.FieldType.CONSTANT, m=1.)
         ).create()
@@ -81,7 +84,8 @@ class TrussStaticEquationFractionalDifferencesTest(unittest.TestCase):
     def test_ConstantSectionFixedEnds_AlphaAlmostOne_ReturnCorrectDisplacement(self):
         model = (
             self._create_predefined_builder()
-                .set_fractional_settings(0.9999, 0.6, 3)
+                .set_fractional_settings(0.9999, 3)
+                .set_length_scale_controller('uniform', 0.6)
                 .add_virtual_nodes(3, 3)
                 .set_field(builder.FieldType.CONSTANT, m=1.)
         ).create()
@@ -102,7 +106,8 @@ class TrussStaticEquationFractionalDifferencesTest(unittest.TestCase):
     def test_ConstantSectionFixedEnds_LfDifferentThanResolutionAndAlpha05_ReturnCorrectDisplacement(self):
         model = (
             self._create_predefined_builder()
-                .set_fractional_settings(0.5, 0.5, 6)
+                .set_fractional_settings(0.5, 6)
+                .set_length_scale_controller('uniform', 0.5)
                 .add_virtual_nodes(3, 3)
                 .set_field(builder.FieldType.CONSTANT, m=1.)
         ).create()
@@ -123,7 +128,8 @@ class TrussStaticEquationFractionalDifferencesTest(unittest.TestCase):
     def test_ConstantSectionFixedEnds_LfDifferentThanResolutionAndAlpha03_ReturnCorrectDisplacement(self):
         model = (
             self._create_predefined_builder()
-                .set_fractional_settings(0.3, 0.5, 6)
+                .set_fractional_settings(0.3, 6)
+                .set_length_scale_controller('uniform', 0.5)
                 .add_virtual_nodes(3, 3)
                 .set_field(builder.FieldType.CONSTANT, m=1.)
         ).create()
@@ -144,7 +150,8 @@ class TrussStaticEquationFractionalDifferencesTest(unittest.TestCase):
     def test_ConstantSectionFixedEnds_LfDifferentThanResolutionAndAlphaAlmostOne_ReturnCorrectDisplacement(self):
         model = (
             self._create_predefined_builder()
-                .set_fractional_settings(0.9999, 0.5, 6)
+                .set_fractional_settings(0.9999, 6)
+                .set_length_scale_controller('uniform', 0.5)
                 .add_virtual_nodes(3, 3)
                 .set_field(builder.FieldType.CONSTANT, m=1.)
         ).create()
@@ -170,7 +177,8 @@ class TrussStaticEquationFractionalDifferencesTest(unittest.TestCase):
         model = (
             self._create_predefined_builder()
                 .set_boundary(builder.Side.RIGHT, builder.BoundaryType.FREE)
-                .set_fractional_settings(0.9999, 0.1, 5)
+                .set_fractional_settings(0.9999, 5)
+                .set_length_scale_controller('uniform', 0.1)
                 .add_virtual_nodes(3, 3)
                 .set_field(builder.FieldType.CONSTANT, m=1.)
                 .set_young_modulus(young_modulus)
@@ -214,7 +222,8 @@ class TrussDynamicEigenproblemEquationFractionalDifferencesTest(unittest.TestCas
 
         model = (
             self._create_predefined_builder()
-                .set_fractional_settings(0.999999, 0.1, 4)
+                .set_fractional_settings(0.999999, 4)
+                .set_length_scale_controller('uniform', 0.1)
                 .add_virtual_nodes(1, 1)
         ).create()
 
@@ -241,7 +250,8 @@ class TrussDynamicEigenproblemEquationFractionalDifferencesTest(unittest.TestCas
 
         model = (
             self._create_predefined_builder()
-                .set_fractional_settings(0.5, 0.1, 4)
+                .set_fractional_settings(0.5, 4)
+                .set_length_scale_controller('uniform', 0.1)
                 .add_virtual_nodes(1, 1)
         ).create()
 
