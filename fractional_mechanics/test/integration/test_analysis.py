@@ -6,7 +6,7 @@ import fractional_mechanics.builder as builder
 from fdm.analysis import solve, AnalysisType
 
 
-class TrussStaticEquationFractionalDifferencesTest(unittest.TestCase):
+class Truss1dStatics6nodesTest(unittest.TestCase):
     def setUp(self):
         self._length = 1.
         self._node_number = 6
@@ -181,7 +181,7 @@ class TrussStaticEquationFractionalDifferencesTest(unittest.TestCase):
                 .set_length_scale_controller('uniform', 0.1)
                 .add_virtual_nodes(3, 3)
                 .set_field(builder.FieldType.CONSTANT, m=1.)
-                .set_young_modulus(young_modulus)
+                .set_young_modulus_controller('user', young_modulus)
                 .set_virtual_boundary_strategy(builder.VirtualBoundaryStrategy.AS_AT_BORDER)
         ).create()
 
@@ -201,7 +201,7 @@ class TrussStaticEquationFractionalDifferencesTest(unittest.TestCase):
 
     def _create_predefined_builder(self):
         return (
-            builder.create(self._length, self._node_number)
+            builder.create('truss1d', self._length, self._node_number)
                 .set_analysis_type('SYSTEM_OF_LINEAR_EQUATIONS')
                 .set_boundary(builder.Side.LEFT, builder.BoundaryType.FIXED)
                 .set_boundary(builder.Side.RIGHT, builder.BoundaryType.FIXED)
@@ -209,11 +209,91 @@ class TrussStaticEquationFractionalDifferencesTest(unittest.TestCase):
                 .set_virtual_boundary_strategy(builder.VirtualBoundaryStrategy.SYMMETRY)
         )
 
-    def _solve(self, model):
+    @staticmethod
+    def _solve(model):
         return solve(AnalysisType.SYSTEM_OF_LINEAR_EQUATIONS, model).displacement
 
 
-class TrussDynamicEigenproblemEquationFractionalDifferencesTest(unittest.TestCase):
+class Truss1dStatics31nodesTest(unittest.TestCase):
+    def setUp(self):
+        self._length = 1
+        self._node_number = 31
+
+    def test_Call_Fractional_ReturnCorrectDisplacements(self):
+
+        span = self._length / (self._node_number - 1)
+        length_scale = span * 3.
+        alpha = 0.7
+
+        model = (
+            self._create_predefined_builder()
+            .set_fractional_settings(alpha, None)
+            .set_length_scale_controller('step_vanish', length_scale, min_value=2. * span, span=span)
+            .set_fractional_operator_pattern(central="FCB", backward="BBB", forward="FFF")
+        ).create()
+
+        result = self._solve(model).displacement
+
+        expected = np.array([
+            [-0.],
+            [0.00369007],
+            [0.00801109],
+            [0.0127756],
+            [0.01789321],
+            [0.0233234],
+            [0.02897823],
+            [0.03473435],
+            [0.0404404],
+            [0.04591583],
+            [0.05095925],
+            [0.05536753],
+            [0.05895956],
+            [0.06159406],
+            [0.06317172],
+            [0.0636338],
+            [0.06296574],
+            [0.06119491],
+            [0.05837687],
+            [0.0545781],
+            [0.0499014],
+            [0.04452662],
+            [0.03870359],
+            [0.03270816],
+            [0.02678991],
+            [0.02113941],
+            [0.01588936],
+            [0.01111796],
+            [0.0068419],
+            [0.00308798],
+            [0.],
+        ])
+
+        np.testing.assert_array_almost_equal(expected, result)
+
+    def _create_predefined_builder(self):
+        b = (
+            builder.create('truss1d', self._length, self._node_number)
+                .set_analysis_type('SYSTEM_OF_LINEAR_EQUATIONS')
+                .set_density_controller('spline_interpolated_linearly', 6)
+                .add_virtual_nodes(1, 1)
+                .set_boundary(builder.Side.LEFT, builder.BoundaryType.FIXED)
+                .set_boundary(builder.Side.RIGHT, builder.BoundaryType.FIXED)
+                .set_load(builder.LoadType.MASS)
+                .set_field(builder.FieldType.SINUSOIDAL, n=1.)
+                .set_operator_dispatcher_strategy('minimize_virtual_layer')
+                .set_virtual_boundary_strategy('based_on_second_derivative')
+                .set_stiffness_to_density_relation('exponential', c_1=1., c_2=1.)
+        )
+
+        b.density_controller.update_by_control_points([0.8, 0.3385, 0.2, 0.2, 0.3351, 1.0])
+        return b
+
+    @staticmethod
+    def _solve(model):
+        return solve(AnalysisType.SYSTEM_OF_LINEAR_EQUATIONS, model)
+
+
+class Truss1dEigenproblemTest(unittest.TestCase):
     def setUp(self):
         self._length = 1.
         self._node_number = 11
@@ -276,9 +356,9 @@ class TrussDynamicEigenproblemEquationFractionalDifferencesTest(unittest.TestCas
 
     def _create_predefined_builder(self):
         return (
-            builder.create(self._length, self._node_number)
+            builder.create('truss1d', self._length, self._node_number)
                 .set_analysis_type('EIGENPROBLEM')
-                .set_young_modulus(1.)
+                .set_young_modulus_controller('uniform', value=1.)
                 .set_boundary(builder.Side.LEFT, builder.BoundaryType.FIXED)
                 .set_boundary(builder.Side.RIGHT, builder.BoundaryType.FIXED)
                 .set_load(builder.LoadType.MASS)
