@@ -50,10 +50,11 @@ class RieszCaputoForLinearDerivative(unittest.TestCase):
 
     @staticmethod
     def _create_fractional_derivative(settings):
-        return fm.create_riesz_operator_by_pattern('caputo', settings, "CCC", settings.lf / settings.resolution)
+        return fm.create_riesz_caputo_strain_operator_by_pattern('caputo', settings, "CCC", settings.lf / settings.resolution)
 
     @staticmethod
     def _create_classic_derivative():
         return fdm.Operator(
             fdm.Stencil.central(1)
         )
+

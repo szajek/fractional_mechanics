@@ -1,1 +1,2 @@
-from .strains import *
+from .truss import *
+from .beam import *

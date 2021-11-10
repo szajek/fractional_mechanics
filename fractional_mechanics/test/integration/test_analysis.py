@@ -3,7 +3,8 @@ import unittest
 import numpy as np
 
 import fractional_mechanics.builder as builder
-from fdm.analysis import solve, AnalysisType
+from fdm.analysis import solve
+from fdm.analysis.analyzer import AnalysisType
 
 
 class Truss1dStatics6nodesTest(unittest.TestCase):
@@ -370,3 +371,66 @@ class Truss1dEigenproblemTest(unittest.TestCase):
     def _solve(self, model):
         return solve(AnalysisType.EIGENPROBLEM, model)
 
+
+class Beam1dStatics6nodesTest(unittest.TestCase):
+    def setUp(self):
+        self._length = 1.
+        self._node_number = 21
+
+    def test_ConstantSection_AlphaAlmostOne_ReturnCorrectDisplacement(self):
+        span = self._length/float(self._node_number - 1)
+        model = (
+            self._create_predefined_builder()
+                .set_fractional_settings(0.99999, 2)
+                .set_length_scale_controller('vanish', 0.1, min_value=span)
+                .add_virtual_nodes(8, 8)
+                .set_load(builder.LoadType.MASS)
+                .set_field(builder.FieldType.CONSTANT, value=1.)
+                .set_boundary(builder.Side.LEFT, builder.BoundaryType.FIXED)
+                .set_boundary(builder.Side.RIGHT, builder.BoundaryType.FIXED)
+                .set_virtual_boundary_strategy('zero_value')
+        ).create()
+
+        result = self._solve(model)
+
+        E = J = q = 1.
+        expected_max_theoretical = -1./384.*q*self._length**4/(E*J)
+        expected_max = -0.00315
+
+        np.testing.assert_allclose(min(result), [expected_max], rtol=5e-2)
+
+    def test_ConstantSection_Alpha08_ReturnCorrectDisplacement(self):
+        span = self._length/float(self._node_number - 1)
+        model = (
+            self._create_predefined_builder()
+                .set_fractional_settings(0.8, 3)
+                .set_length_scale_controller('vanish', 0.1, min_value=span)
+                .add_virtual_nodes(8, 8)
+                .set_load(builder.LoadType.MASS)
+                .set_field(builder.FieldType.CONSTANT, value=1.)
+                .set_boundary(builder.Side.LEFT, builder.BoundaryType.FIXED)
+                .set_boundary(builder.Side.RIGHT, builder.BoundaryType.FIXED)
+                .set_virtual_boundary_strategy('zero_value')
+        ).create()
+
+        result = self._solve(model)
+
+        E = J = q = 1.
+        expected_max_classical = -1./384.*q*self._length**4/(E*J)
+        expected_max = -0.00345
+
+        np.testing.assert_allclose(min(result), [expected_max], rtol=5e-1)
+
+    def _create_predefined_builder(self):
+        return (
+            builder.create('beam1d', self._length, self._node_number)
+                .set_analysis_type('SYSTEM_OF_LINEAR_EQUATIONS')
+                .set_boundary(builder.Side.LEFT, builder.BoundaryType.FIXED)
+                .set_boundary(builder.Side.RIGHT, builder.BoundaryType.FIXED)
+                .set_load(builder.LoadType.MASS)
+                .set_virtual_boundary_strategy(builder.VirtualBoundaryStrategy.SYMMETRY)
+        )
+
+    @staticmethod
+    def _solve(model):
+        return solve(AnalysisType.SYSTEM_OF_LINEAR_EQUATIONS, model).displacement
