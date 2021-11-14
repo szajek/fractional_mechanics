@@ -18,10 +18,10 @@ def create_builder():
 
 def create_for_truss_1d(length, nodes_number):
     builder = FractionalBuilder1D(length, nodes_number)
-    builder.set_stiffness_factory(create_truss_stiffness_operators_set)
-
-    operator_strategy = create_truss_fractional_operator_dispatcher_strategy()
-    builder.set_stiffness_operator_dispatcher(operator_strategy)
+    builder.set_stiffness_factory({
+        AnalysisStrategy.UP_TO_DOWN: create_truss_stiffness_operators_up_to_down,
+        AnalysisStrategy.DOWN_TO_UP: create_truss_stiffness_operators_down_to_up,
+    })
 
     _register_strategy(builder)
     return builder
@@ -29,10 +29,10 @@ def create_for_truss_1d(length, nodes_number):
 
 def create_for_beam_1d(length, nodes_number):
     builder = FractionalBuilder1D(length, nodes_number)
-    builder.set_stiffness_factory(create_beam_stiffness_operators_set)
-
-    operator_strategy = create_beam_fractional_operator_dispatcher_strategy()
-    builder.set_stiffness_operator_dispatcher(operator_strategy)
+    builder.set_stiffness_factory({
+        AnalysisStrategy.UP_TO_DOWN: create_beam_stiffness_operators_up_to_down,
+        AnalysisStrategy.DOWN_TO_UP: create_beam_stiffness_operators_down_to_up,
+    })
 
     _register_strategy(builder)
     return builder
@@ -46,6 +46,12 @@ def _register_strategy(builder):
     builder.set_virtual_node_equation_strategy(virtual_eq_strategy)
     builder.set_boundary_equation_strategy(bcs_eq_strategy)
     return builder
+
+
+StiffnessInput = collections.namedtuple('StiffnessInput', (
+    'mesh', 'length', 'span', 'strategy', 'young_modulus_controller', 'alpha', 'resolution',
+    'length_scale_controller', 'integration_method', 'fractional_operator_pattern'
+))
 
 
 class FractionalBuilder1D(Builder1d):
@@ -95,41 +101,53 @@ class FractionalBuilder1D(Builder1d):
     def create(self):
         return super().create()
 
-    def _create_stiffness_operators_set(self):
-        return self._stiffness_factory(
-            self._span, self._get_corrected_young_modulus, self._context['alpha'], self._context['resolution'],
-            self._context['length_scale_controller'], self._context['integration_method'],
-            self._context['fractional_operator_pattern'])
+    def _create_stiffness_stencils(self, mesh):
+        data = StiffnessInput(
+            mesh, self._length, self._span,
+            self._context['stiffness_operator_strategy'],
+            self._get_corrected_young_modulus,
+            self._context['alpha'],
+            self._context['resolution'],
+            self._context['length_scale_controller'],
+            self._context['integration_method'],
+            self._context['fractional_operator_pattern']
+        )
+
+        return self._stiffness_factory[self._analysis_strategy](data)
 
     @property
     def length_scale(self):
         return self._revolve_for_points(self.length_scale_controller.get)
 
 
-def create_truss_stiffness_operators_set(span, young_modulus_controller, alpha, resolution, length_scale_controller,
-                                         integration_method, fractional_operator_pattern):
-    settings_builder = dynamic_settings_builder(span, alpha, length_scale_controller, resolution)
+def create_truss_stiffness_operators_up_to_down(data):
+    span = data.span
+    resolution = data.resolution
+    alpha = data.alpha
+    length = data.length
+
+    settings_builder = dynamic_settings_builder(span, alpha, data.length_scale_controller, resolution)
 
     create_strain_operator_builder = create_fractional_strain_operator_builder(
-        span, integration_method, settings_builder)
+        span, data.integration_method, settings_builder)
 
     fractional_deformation_operator_central = fdm.DynamicElement(
         create_strain_operator_builder(
-            fractional_operator_pattern['central']
+            data.fractional_operator_pattern['central']
         )
     )
     fractional_deformation_operator_backward = fdm.DynamicElement(
         create_strain_operator_builder(
-            fractional_operator_pattern['backward']
+            data.fractional_operator_pattern['backward']
         )
     )
     fractional_deformation_operator_forward = fdm.DynamicElement(
         create_strain_operator_builder(
-            fractional_operator_pattern['forward']
+            data.fractional_operator_pattern['forward']
         )
     )
 
-    E = young_modulus_controller
+    E = data.young_modulus_controller
 
     fractional_ep_central = fdm.Operator(
         fdm.Stencil.central(span=span),
@@ -152,7 +170,7 @@ def create_truss_stiffness_operators_set(span, young_modulus_controller, alpha, 
         fdm.Number(E) * fractional_deformation_operator_central
     )
 
-    return {
+    operators = {
         'central': fractional_ep_central,
         'forward': fractional_ep_forward,
         'backward': fractional_ep_backward,
@@ -160,13 +178,30 @@ def create_truss_stiffness_operators_set(span, young_modulus_controller, alpha, 
         'backward_central': fractional_ep_backward_central,
     }
 
+    def dispatch(point):
+        return {
+            Point(0. + span): operators['forward_central'],
+            Point(length - span): operators['backward_central'],
+        }.get(point, operators['central'])
 
-def create_beam_stiffness_operators_set(span, young_modulus_controller, alpha, resolution, length_scale_controller,
-                                        integration_method, fractional_operator_pattern):
+    if data.strategy == 'minimize_virtual_layer':
+        return fdm.DynamicElement(dispatch)
+    else:  # standard
+        return operators['central']
 
-    settings_builder = dynamic_settings_builder(span, alpha, length_scale_controller, resolution)
 
-    E = young_modulus_controller
+def create_truss_stiffness_operators_down_to_up(data):
+    return []
+
+
+def create_beam_stiffness_operators_up_to_down(data):
+    span = data.span
+    resolution = data.resolution
+    alpha = data.alpha
+
+    settings_builder = dynamic_settings_builder(span, alpha, data.length_scale_controller, resolution)
+
+    E = data.young_modulus_controller
 
     def moment_of_inertia_controller(point):
         return 1.
@@ -193,11 +228,11 @@ def create_beam_stiffness_operators_set(span, young_modulus_controller, alpha, r
     }
 
     central_stencils = fractional_mechanics.create_beam_stiffness_stencils_factory(
-        integration_method, central_base_stencils, settings_builder)
+        data.integration_method, central_base_stencils, settings_builder)
     backward_stencils = fractional_mechanics.create_beam_stiffness_stencils_factory(
-        integration_method, backward_base_stencils, settings_builder)
+        data.integration_method, backward_base_stencils, settings_builder)
     forward_stencils = fractional_mechanics.create_beam_stiffness_stencils_factory(
-        integration_method, forward_base_stencils, settings_builder)
+        data.integration_method, forward_base_stencils, settings_builder)
 
     central_operators = fractional_mechanics.create_beam_stiffness_operators_factory(central_stencils)
     backward_operators = fractional_mechanics.create_beam_stiffness_operators_factory(backward_stencils)
@@ -206,11 +241,26 @@ def create_beam_stiffness_operators_set(span, young_modulus_controller, alpha, r
     def create_operator(operators):
         return fdm.Number(E) * fdm.Number(I) * operators['D']
 
-    return {
+    operators = {
         'central': create_operator(central_operators),
         'forward': create_operator(forward_operators),
         'backward': create_operator(backward_operators),
     }
+
+    def dispatch(point):
+        return {
+            Point(0. + span): operators['forward'],
+            Point(length - span): operators['backward'],
+        }.get(point, operators['central'])
+
+    if data.strategy == 'minimize_virtual_layer':
+        return fdm.DynamicElement(dispatch)
+    else:  # standard
+        return operators['central']
+
+
+def create_beam_stiffness_operators_down_to_up(data):
+    return []
 
 
 def create_fractional_strain_operator_builder(span, integration_method, settings_builder):
@@ -252,39 +302,6 @@ def dynamic_settings_builder(span, alpha, length_scale_controller, resolution):
     def get(point):
         return fractulus.Settings(alpha, dynamic_lf(point), dynamic_resolution(point))
     return get
-
-
-def create_truss_fractional_operator_dispatcher_strategy():
-    operators_dispatcher = Strategy()
-    operators_dispatcher.register('standard', create_standard_operator_dispatcher)
-    operators_dispatcher.register('minimize_virtual_layer', create_minimize_virtual_layer_dispatcher_for_truss)
-    return operators_dispatcher
-
-
-def create_beam_fractional_operator_dispatcher_strategy():
-    operators_dispatcher = Strategy()
-    operators_dispatcher.register('standard', create_standard_operator_dispatcher)
-    operators_dispatcher.register('minimize_virtual_layer', create_minimize_virtual_layer_dispatcher_for_beam)
-    return operators_dispatcher
-
-
-def create_minimize_virtual_layer_dispatcher_for_truss(*args):
-    return _create_minimize_virtual_layer_dispatcher('forward_central', 'backward_central', *args)
-
-
-def create_minimize_virtual_layer_dispatcher_for_beam(*args):
-    return _create_minimize_virtual_layer_dispatcher('forward', 'backward', *args)
-
-
-def _create_minimize_virtual_layer_dispatcher(forward_name, backward_name, operators, length, span):
-
-    def dispatch(point):
-        return {
-            Point(0. + span): operators[forward_name],
-            Point(length - span): operators[backward_name],
-        }.get(point, operators['central'])
-
-    return fdm.DynamicElement(dispatch)
 
 
 def create_vanish_length_scale_corrector(length, init_value, min_value):
