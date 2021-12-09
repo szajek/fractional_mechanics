@@ -3,8 +3,9 @@ import unittest
 import numpy as np
 
 import fractional_mechanics.builder as builder
-from fdm.analysis import solve
+from fdm.analysis import solve, AnalysisStrategy
 from fdm.analysis.analyzer import AnalysisType
+from fractional_mechanics.test.utils import Profiler
 
 
 class Truss1dStatics6nodesTest(unittest.TestCase):
@@ -17,10 +18,7 @@ class Truss1dStatics6nodesTest(unittest.TestCase):
             self._create_predefined_builder()
                 .set_fractional_settings(0.99999, 5)
                 .set_length_scale_controller('uniform', .1)
-                .add_virtual_nodes(2, 2)
                 .set_field(builder.FieldType.LINEAR, a=1.)
-                .set_boundary(builder.Side.RIGHT, builder.BoundaryType.FREE)
-                .set_virtual_boundary_strategy(builder.VirtualBoundaryStrategy.AS_AT_BORDER)
         ).create()
 
         result = self._solve(model)
@@ -28,11 +26,11 @@ class Truss1dStatics6nodesTest(unittest.TestCase):
         expected = np.array(
             [
                 [0.],
-                [0.08],
-                [0.152],
-                [0.208],
-                [0.24],
-                [0.24],
+                [0.032],
+                [0.056],
+                [0.064],
+                [0.048],
+                [0.0],
             ]
         )
 
@@ -41,21 +39,23 @@ class Truss1dStatics6nodesTest(unittest.TestCase):
     def test_ConstantSectionFixedEnds_Alpha05_ReturnCorrectDisplacement(self):
         model = (
             self._create_predefined_builder()
-                .set_fractional_settings(0.5, 3)
-                .set_length_scale_controller('uniform', 0.6)
-                .add_virtual_nodes(4, 4)
+                .set_fractional_settings(0.5, 5)
+                .add_virtual_nodes(2, 2)
+                .set_length_scale_controller('vanish', 0.6, min_value=.2)
                 .set_field(builder.FieldType.CONSTANT, m=1.)
         ).create()
 
         result = self._solve(model)
 
         expected = np.array(
-            [[9.41385462e-16],
-             [3.47172214e-01],
-             [4.99518990e-01],
-             [4.99518990e-01],
-             [3.47172214e-01],
-             [0.00000000e+00]]
+            [
+                [0.],
+                [0.05299994],
+                [0.09866683],
+                [0.09866683],
+                [0.05299994],
+                [0.],
+            ]
         )
 
         np.testing.assert_allclose(expected, result, atol=1e-4)
@@ -64,20 +64,22 @@ class Truss1dStatics6nodesTest(unittest.TestCase):
         model = (
             self._create_predefined_builder()
                 .set_fractional_settings(0.3, 3)
-                .set_length_scale_controller('uniform', 0.6)
-                .add_virtual_nodes(3, 3)
+                .add_virtual_nodes(2, 2)
+                .set_length_scale_controller('vanish', 0.6, min_value=.2)
                 .set_field(builder.FieldType.CONSTANT, m=1.)
         ).create()
 
         result = self._solve(model)
 
         expected = np.array(
-            [[5.46428567e-16],
-             [9.59393722e-01],
-             [1.74524563e+00],
-             [1.74524563e+00],
-             [9.59393722e-01],
-             [0.00000000e+00]]
+            [
+                [0.],
+                [0.00045699],
+                [0.07412265],
+                [0.07412265],
+                [0.00045699],
+                [0.],
+            ]
         )
 
         np.testing.assert_allclose(expected, result, atol=1e-4)
@@ -86,8 +88,8 @@ class Truss1dStatics6nodesTest(unittest.TestCase):
         model = (
             self._create_predefined_builder()
                 .set_fractional_settings(0.9999, 3)
-                .set_length_scale_controller('uniform', 0.6)
-                .add_virtual_nodes(3, 3)
+                .set_length_scale_controller('vanish', 0.6, min_value=.2)
+                .add_virtual_nodes(2, 2)
                 .set_field(builder.FieldType.CONSTANT, m=1.)
         ).create()
 
@@ -108,20 +110,22 @@ class Truss1dStatics6nodesTest(unittest.TestCase):
         model = (
             self._create_predefined_builder()
                 .set_fractional_settings(0.5, 6)
-                .set_length_scale_controller('uniform', 0.5)
-                .add_virtual_nodes(3, 3)
+                .set_length_scale_controller('vanish', 0.5, min_value=.2)
+                .add_virtual_nodes(2, 2)
                 .set_field(builder.FieldType.CONSTANT, m=1.)
         ).create()
 
         result = self._solve(model)
 
         expected = np.array(
-            [[-2.79921788e-16],
-             [2.93429923e-01],
-             [3.71316963e-01],
-             [3.71316963e-01],
-             [2.93429923e-01],
-             [0.00000000e+00]]
+            [
+                [0.],
+                [0.05281015],
+                [0.09917294],
+                [0.09917294],
+                [0.05281015],
+                [0.],
+            ]
         )
 
         np.testing.assert_allclose(expected, result, atol=1e-4)
@@ -130,20 +134,21 @@ class Truss1dStatics6nodesTest(unittest.TestCase):
         model = (
             self._create_predefined_builder()
                 .set_fractional_settings(0.3, 6)
-                .set_length_scale_controller('uniform', 0.5)
-                .add_virtual_nodes(3, 3)
+                .set_length_scale_controller('vanish', 0.5, min_value=.2)
                 .set_field(builder.FieldType.CONSTANT, m=1.)
         ).create()
 
         result = self._solve(model)
 
         expected = np.array(
-            [[1.42549063e-16],
-             [5.85829500e-01],
-             [7.06500004e-01],
-             [7.06500004e-01],
-             [5.85829500e-01],
-             [0.00000000e+00]]
+            [
+                [0.],
+                [0.00045699],
+                [0.07412265],
+                [0.07412265],
+                [0.00045699],
+                [0.],
+            ]
         )
 
         np.testing.assert_allclose(expected, result, atol=1e-4)
@@ -152,8 +157,7 @@ class Truss1dStatics6nodesTest(unittest.TestCase):
         model = (
             self._create_predefined_builder()
                 .set_fractional_settings(0.9999, 6)
-                .set_length_scale_controller('uniform', 0.5)
-                .add_virtual_nodes(3, 3)
+                .set_length_scale_controller('vanish', 0.5, min_value=.2)
                 .set_field(builder.FieldType.CONSTANT, m=1.)
         ).create()
 
@@ -177,24 +181,23 @@ class Truss1dStatics6nodesTest(unittest.TestCase):
 
         model = (
             self._create_predefined_builder()
-                .set_boundary(builder.Side.RIGHT, builder.BoundaryType.FREE)
                 .set_fractional_settings(0.9999, 5)
-                .set_length_scale_controller('uniform', 0.1)
-                .add_virtual_nodes(3, 3)
+                .set_length_scale_controller('vanish', 0.1, min_value=.2)
                 .set_field(builder.FieldType.CONSTANT, m=1.)
                 .set_young_modulus_controller('user', young_modulus)
-                .set_virtual_boundary_strategy(builder.VirtualBoundaryStrategy.AS_AT_BORDER)
+                .set_virtual_boundary_strategy(builder.FractionalVirtualBoundaryStrategy.BASED_ON_SECOND_DERIVATIVE)
         ).create()
 
         result = self._solve(model)
 
         expected = np.array(
-            [[-3.92668354e-16],
-             [8.42105263e-02],
-             [1.54798762e-01],
-             [2.08132095e-01],
-             [2.38901326e-01],
-             [2.38901326e-01],
+            [
+                [0.],
+                [0.04786519],
+                [0.0778324],
+                [0.08512865],
+                [0.06277831],
+                [0.],
              ]
         )
 
@@ -204,9 +207,10 @@ class Truss1dStatics6nodesTest(unittest.TestCase):
         return (
             builder.create('truss1d', self._length, self._node_number)
                 .set_analysis_type('SYSTEM_OF_LINEAR_EQUATIONS')
-                .set_boundary(builder.Side.LEFT, builder.BoundaryType.FIXED)
                 .set_boundary(builder.Side.RIGHT, builder.BoundaryType.FIXED)
+                .set_boundary(builder.Side.LEFT, builder.BoundaryType.FIXED)
                 .set_load(builder.LoadType.MASS)
+                .add_virtual_nodes(2, 2)
                 .set_virtual_boundary_strategy(builder.VirtualBoundaryStrategy.SYMMETRY)
         )
 
@@ -229,7 +233,7 @@ class Truss1dStatics31nodesTest(unittest.TestCase):
         model = (
             self._create_predefined_builder()
             .set_fractional_settings(alpha, None)
-            .set_length_scale_controller('step_vanish', length_scale, min_value=2. * span, span=span)
+            .set_length_scale_controller('step_vanish', length_scale, min_value=span, span=span)
             .set_fractional_operator_pattern(central="FCB", backward="BBB", forward="FFF")
         ).create()
 
@@ -276,14 +280,14 @@ class Truss1dStatics31nodesTest(unittest.TestCase):
             builder.create('truss1d', self._length, self._node_number)
                 .set_analysis_type('SYSTEM_OF_LINEAR_EQUATIONS')
                 .set_density_controller('spline_interpolated_linearly', 6)
-                .add_virtual_nodes(1, 1)
+                .add_virtual_nodes(2, 2)
                 .set_boundary(builder.Side.LEFT, builder.BoundaryType.FIXED)
                 .set_boundary(builder.Side.RIGHT, builder.BoundaryType.FIXED)
                 .set_load(builder.LoadType.MASS)
                 .set_field(builder.FieldType.SINUSOIDAL, n=1.)
                 .set_stiffness_operator_strategy('minimize_virtual_layer')
-                .set_virtual_boundary_strategy('based_on_second_derivative')
                 .set_stiffness_to_density_relation('exponential', c_1=1., c_2=1.)
+                .set_virtual_boundary_strategy(builder.FractionalVirtualBoundaryStrategy.BASED_ON_SECOND_DERIVATIVE)
         )
 
         b.density_controller.update_by_control_points([0.8, 0.3385, 0.2, 0.2, 0.3351, 1.0])
@@ -305,7 +309,7 @@ class Truss1dEigenproblemTest(unittest.TestCase):
             self._create_predefined_builder()
                 .set_fractional_settings(0.999999, 4)
                 .set_length_scale_controller('uniform', 0.1)
-                .add_virtual_nodes(1, 1)
+
         ).create()
 
         result = self._solve(model)
@@ -333,7 +337,6 @@ class Truss1dEigenproblemTest(unittest.TestCase):
             self._create_predefined_builder()
                 .set_fractional_settings(0.5, 4)
                 .set_length_scale_controller('uniform', 0.1)
-                .add_virtual_nodes(1, 1)
         ).create()
 
         result = self._solve(model)
@@ -363,74 +366,182 @@ class Truss1dEigenproblemTest(unittest.TestCase):
                 .set_boundary(builder.Side.LEFT, builder.BoundaryType.FIXED)
                 .set_boundary(builder.Side.RIGHT, builder.BoundaryType.FIXED)
                 .set_load(builder.LoadType.MASS)
+                .add_virtual_nodes(2, 2)
                 .set_stiffness_operator_strategy('standard')
                 .set_fractional_operator_pattern(central="FCB", backward="BBB", forward="FFF")
-                .set_virtual_boundary_strategy(builder.VirtualBoundaryStrategy.SYMMETRY)
         )
 
     def _solve(self, model):
         return solve(AnalysisType.EIGENPROBLEM, model)
 
 
-class Beam1dStatics6nodesTest(unittest.TestCase):
+class Beam1dStatics21nodesTest(unittest.TestCase):
     def setUp(self):
         self._length = 1.
         self._node_number = 21
+        self._span = self._length/float(self._node_number - 1)
 
-    def test_ConstantSection_AlphaAlmostOne_ReturnCorrectDisplacement(self):
-        span = self._length/float(self._node_number - 1)
-        model = (
-            self._create_predefined_builder()
-                .set_fractional_settings(0.99999, 2)
-                .set_length_scale_controller('vanish', 0.1, min_value=span)
-                .add_virtual_nodes(8, 8)
-                .set_load(builder.LoadType.MASS)
-                .set_field(builder.FieldType.CONSTANT, value=1.)
-                .set_boundary(builder.Side.LEFT, builder.BoundaryType.FIXED)
-                .set_boundary(builder.Side.RIGHT, builder.BoundaryType.FIXED)
-                .set_virtual_boundary_strategy('zero_value')
-        ).create()
+    def test_UpToDown_AlphaAlmostOne_ReturnCorrectDisplacement(self):
+        builder = self._create_predefined_builder()
+        builder.set_analysis_strategy(AnalysisStrategy.UP_TO_DOWN)
+        builder.set_fractional_settings(0.99999, 3)
+        model = builder.create()
 
         result = self._solve(model)
 
         E = J = q = 1.
         expected_max_theoretical = -1./384.*q*self._length**4/(E*J)
-        expected_max = -0.00315
+        expected_max = -0.002808
 
-        np.testing.assert_allclose(min(result), [expected_max], rtol=5e-2)
+        np.testing.assert_allclose([expected_max], min(result), atol=1e-5)
 
-    def test_ConstantSection_Alpha08_ReturnCorrectDisplacement(self):
-        span = self._length/float(self._node_number - 1)
-        model = (
-            self._create_predefined_builder()
-                .set_fractional_settings(0.8, 3)
-                .set_length_scale_controller('vanish', 0.1, min_value=span)
-                .add_virtual_nodes(8, 8)
-                .set_load(builder.LoadType.MASS)
-                .set_field(builder.FieldType.CONSTANT, value=1.)
-                .set_boundary(builder.Side.LEFT, builder.BoundaryType.FIXED)
-                .set_boundary(builder.Side.RIGHT, builder.BoundaryType.FIXED)
-                .set_virtual_boundary_strategy('zero_value')
-        ).create()
+    def test_UpToDown_Alpha08_ReturnCorrectDisplacement(self):
+        builder = self._create_predefined_builder()
+        builder.set_analysis_strategy(AnalysisStrategy.UP_TO_DOWN)
+        builder.set_fractional_settings(0.8, 3)
+        model = builder.create()
 
         result = self._solve(model)
 
         E = J = q = 1.
         expected_max_classical = -1./384.*q*self._length**4/(E*J)
-        expected_max = -0.00345
+        expected_max = -0.002577  # it agrees with down up when denser mesh
 
-        np.testing.assert_allclose(min(result), [expected_max], rtol=5e-1)
+        np.testing.assert_allclose(min(result), [expected_max], atol=1e-5)
 
     def _create_predefined_builder(self):
         return (
             builder.create('beam1d', self._length, self._node_number)
-                .set_analysis_type('SYSTEM_OF_LINEAR_EQUATIONS')
-                .set_boundary(builder.Side.LEFT, builder.BoundaryType.FIXED)
-                .set_boundary(builder.Side.RIGHT, builder.BoundaryType.FIXED)
-                .set_load(builder.LoadType.MASS)
-                .set_virtual_boundary_strategy(builder.VirtualBoundaryStrategy.SYMMETRY)
+            .set_analysis_type('SYSTEM_OF_LINEAR_EQUATIONS')
+            .set_boundary(builder.Side.LEFT, builder.BoundaryType.FIXED)
+            .set_boundary(builder.Side.RIGHT, builder.BoundaryType.FIXED)
+            .set_load(builder.LoadType.MASS)
+            .set_field(builder.FieldType.CONSTANT, value=1.)
+            .add_virtual_nodes(8, 8)
+            .set_length_scale_controller('vanish', 0.1, min_value=self._span)
+            .set_stiffness_operator_strategy('minimize_virtual_layer')
         )
 
     @staticmethod
     def _solve(model):
         return solve(AnalysisType.SYSTEM_OF_LINEAR_EQUATIONS, model).displacement
+
+
+class Beam1dStatics101nodesTest(unittest.TestCase):
+    def setUp(self):
+        self._length = 1.
+        self._node_number = 101
+        self._span = self._length/float(self._node_number - 1)
+
+    def test_DownToUp_AlphaAlmostOne_ReturnCorrectDisplacement(self):
+        builder = self._create_predefined_builder()
+        builder.set_analysis_strategy(AnalysisStrategy.DOWN_TO_UP)
+        builder.set_fractional_settings(0.999999, 2)
+        model = builder.create()
+
+        result = self._solve(model)
+
+        E = J = q = 1.
+        expected_max_theoretical = -1./384.*q*self._length**4/(E*J)
+        expected_max = -0.002765
+
+        np.testing.assert_allclose(min(result), [expected_max], atol=1e-5)
+
+    def test_DownToUp_Alpha08_ReturnCorrectDisplacement(self):
+        builder = self._create_predefined_builder()
+        builder.set_analysis_strategy(AnalysisStrategy.DOWN_TO_UP)
+        builder.set_fractional_settings(0.8, 3)
+        model = builder.create()
+
+        result = self._solve(model)
+
+        E = J = q = 1.
+        expected_max_classical = -1./384.*q*self._length**4/(E*J)
+        expected_max = -0.002553  # it agrees with up down when denser mesh
+
+        np.testing.assert_allclose(min(result), [expected_max], atol=1e-5)
+
+    def _create_predefined_builder(self):
+        return (
+            builder.create('beam1d', self._length, self._node_number)
+            .set_analysis_type('SYSTEM_OF_LINEAR_EQUATIONS')
+            .set_boundary(builder.Side.LEFT, builder.BoundaryType.FIXED)
+            .set_boundary(builder.Side.RIGHT, builder.BoundaryType.FIXED)
+            .set_load(builder.LoadType.MASS)
+            .set_field(builder.FieldType.CONSTANT, value=1.)
+            .add_virtual_nodes(8, 8)
+            .set_length_scale_controller('vanish', 0.1, min_value=self._span)
+            .set_stiffness_operator_strategy('minimize_virtual_layer')
+        )
+
+    @staticmethod
+    def _solve(model):
+        return solve(AnalysisType.SYSTEM_OF_LINEAR_EQUATIONS, model).displacement
+
+
+class BeamStaticsCaseTest(unittest.TestCase):
+    """
+    Results from https://doi.org/10.1016/j.ijmecsci.2020.105902
+    """
+    def setUp(self):
+        self._length = 2.
+        self._node_number = 21
+        self._length_scale = 0.2
+        self._span = self._length/float(self._node_number - 1)
+        self._resolution = int(self._length_scale/self._span/2.)
+
+    def test_DownToUp_FixedAndAlphaAlmostOne_ReturnCorrectDisplacement(self):
+        builder = self._create_predefined_builder()
+        builder.set_analysis_strategy(AnalysisStrategy.DOWN_TO_UP)
+        builder.set_fractional_settings(0.999999999999, self._resolution)
+        model = builder.create()
+
+        result = self._solve(model)
+
+        L = self._length
+        L1, L2 = 0.5*L, 0.5*L
+        E = 30e9
+        I = 0.25*0.2**3/12.
+        P = -100.
+        expected_max_theoretical = P*L1**3*L2**3 / (3.*L**3*E*I)
+        expected_max = -0.002358
+
+        np.testing.assert_allclose(min(result), [expected_max], atol=1e-6)
+
+    def test_DownToUp_FixedAndAlpha06_ReturnCorrectDisplacement(self):
+        builder = self._create_predefined_builder()
+        builder.set_analysis_strategy(AnalysisStrategy.DOWN_TO_UP)
+
+        builder.set_fractional_settings(0.6, self._resolution)
+        model = builder.create()
+
+        with Profiler(False):
+            result = self._solve(model)
+
+        expected_max = -0.002668
+
+        np.testing.assert_allclose(min(result), [expected_max], atol=1e-5)
+
+    def _create_predefined_builder(self):
+        return (
+            builder.create('beam1d', self._length, self._node_number)
+            .set_analysis_type('SYSTEM_OF_LINEAR_EQUATIONS')
+            .set_boundary(builder.Side.LEFT, builder.BoundaryType.FIXED)
+            .set_boundary(builder.Side.RIGHT, builder.BoundaryType.FIXED)
+            .set_load(builder.LoadType.POINT, ordinate=0.5, magnitude=-100, )
+            .add_virtual_nodes(8, 8)
+            .set_length_scale_controller('vanish', self._length_scale, min_value=self._span)
+            .set_young_modulus_controller('uniform', 30e6)
+            .set_moment_of_inertia_controller('uniform', 0.25*0.2**3/12.)
+            .set_stiffness_operator_strategy('minimize_virtual_layer')
+        )
+
+    @staticmethod
+    def _solve(model):
+        return solve(AnalysisType.SYSTEM_OF_LINEAR_EQUATIONS, model).displacement
+
+
+def plot(x):
+    import matplotlib.pyplot as plt
+    plt.plot(x)
+    plt.show()
