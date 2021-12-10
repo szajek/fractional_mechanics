@@ -488,10 +488,10 @@ class BeamStaticsCaseTest(unittest.TestCase):
     """
     def setUp(self):
         self._length = 2.
-        self._node_number = 101
+        self._node_number = 81
         self._length_scale = 0.2
         self._span = self._length/float(self._node_number - 1)
-        self._resolution = int(self._length_scale/self._span/2.) + 1
+        self._resolution = int(self._length_scale/self._span/2.)
 
     def test_DownToUp_FixedAndAlphaAlmostOne_ReturnCorrectDisplacement(self):
         builder = self._create_predefined_builder()
@@ -509,7 +509,7 @@ class BeamStaticsCaseTest(unittest.TestCase):
         I = 0.25*0.2**3/12.
         P = -100.
         expected_max_theoretical = P*L1**3*L2**3 / (3.*L**3*E*I)
-        expected_max = -0.000861
+        expected_max = -0.000875
 
         np.testing.assert_allclose(min(result), [expected_max], atol=1e-6)
 
@@ -546,7 +546,7 @@ class BeamStaticsCaseTest(unittest.TestCase):
         I = 0.25*0.2**3/12.
         P = -100.
         expected_max_theoretical = P*L2*(3.*L**2 - 4.*L2**2) / (48*E*I)
-        expected_max = -0.002672
+        expected_max = -0.00186
         np.testing.assert_allclose([expected_max], min(result), atol=1e-6)
 
     def test_DownToUp_SimplySupportedAndAlpha06_ReturnCorrectDisplacement(self):
@@ -558,8 +558,8 @@ class BeamStaticsCaseTest(unittest.TestCase):
         model = builder.create()
 
         result = self._solve(model)
-        plot(result)
-        expected_max = -0.035608
+
+        expected_max = -0.037397
         np.testing.assert_allclose([expected_max], min(result), atol=1e-6)
 
     def _create_predefined_builder(self):
