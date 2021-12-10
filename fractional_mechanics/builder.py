@@ -476,23 +476,45 @@ def create_beam_statics_bcs(boundary, data):
     central_stencils = fractional_mechanics.create_beam_stiffness_stencils_factory(
         data.integration_method, central_base_stencils, settings_builder)
 
-    begin_A_scheme = central_stencils['A'](begin_node).expand(begin_node)
-    end_A_scheme = central_stencils['A'](end_node).expand(end_node)
+    operators = fractional_mechanics.create_beam_stiffness_operators_factory(central_stencils)
 
-    begin_rotation_fixed = static_boundary(begin_A_scheme, 0.)
-    end_rotation_fixed = static_boundary(end_A_scheme, 0.)
+    begin_A_scheme = operators['A'].expand(begin_node)
+    end_A_scheme = operators['A'].expand(end_node)
+
+    begin_B_scheme = operators['B'].expand(begin_node)
+    end_B_scheme = operators['B'].expand(end_node)
+
+    begin_rotation_zero = static_boundary(begin_A_scheme, 0.)
+    end_rotation_zero = static_boundary(end_A_scheme, 0.)
+
+    begin_moment_zero = static_boundary(begin_B_scheme, 0.)
+    end_moment_zero = static_boundary(end_B_scheme, 0.)
 
     bcs = []
-    if boundary[Side.LEFT].type == BoundaryType.FIXED:
+
+    left_type = boundary[Side.LEFT].type
+    right_type = boundary[Side.RIGHT].type
+
+    if left_type == BoundaryType.FIXED:
         bcs += [
             begin_displacement_fixed,
-            begin_rotation_fixed,
+            begin_rotation_zero,
+        ]
+    elif left_type == BoundaryType.HINGE:
+        bcs += [
+            begin_displacement_fixed,
+            begin_moment_zero,
         ]
 
-    if boundary[Side.RIGHT].type == BoundaryType.FIXED:
+    if right_type == BoundaryType.FIXED:
         bcs += [
             end_displacement_fixed,
-            end_rotation_fixed,
+            end_rotation_zero,
+        ]
+    elif right_type == BoundaryType.HINGE:
+        bcs += [
+            end_displacement_fixed,
+            end_moment_zero,
         ]
 
     def p(s, base=0.):

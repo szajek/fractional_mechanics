@@ -5,6 +5,9 @@ import numpy as np
 import fractional_mechanics.builder as builder
 from fdm.analysis import solve, AnalysisStrategy
 from fdm.analysis.analyzer import AnalysisType
+from fractional_mechanics.builder import (
+    BoundaryType, Side, FractionalVirtualBoundaryStrategy, LoadType
+)
 from fractional_mechanics.test.utils import Profiler
 
 
@@ -485,14 +488,16 @@ class BeamStaticsCaseTest(unittest.TestCase):
     """
     def setUp(self):
         self._length = 2.
-        self._node_number = 21
+        self._node_number = 101
         self._length_scale = 0.2
         self._span = self._length/float(self._node_number - 1)
-        self._resolution = int(self._length_scale/self._span/2.)
+        self._resolution = int(self._length_scale/self._span/2.) + 1
 
     def test_DownToUp_FixedAndAlphaAlmostOne_ReturnCorrectDisplacement(self):
         builder = self._create_predefined_builder()
         builder.set_analysis_strategy(AnalysisStrategy.DOWN_TO_UP)
+        builder.set_boundary(Side.LEFT, BoundaryType.FIXED)
+        builder.set_boundary(Side.RIGHT, BoundaryType.FIXED)
         builder.set_fractional_settings(0.999999999999, self._resolution)
         model = builder.create()
 
@@ -500,17 +505,19 @@ class BeamStaticsCaseTest(unittest.TestCase):
 
         L = self._length
         L1, L2 = 0.5*L, 0.5*L
-        E = 30e9
+        E = 30e6
         I = 0.25*0.2**3/12.
         P = -100.
         expected_max_theoretical = P*L1**3*L2**3 / (3.*L**3*E*I)
-        expected_max = -0.002358
+        expected_max = -0.000861
 
         np.testing.assert_allclose(min(result), [expected_max], atol=1e-6)
 
     def test_DownToUp_FixedAndAlpha06_ReturnCorrectDisplacement(self):
         builder = self._create_predefined_builder()
         builder.set_analysis_strategy(AnalysisStrategy.DOWN_TO_UP)
+        builder.set_boundary(Side.LEFT, BoundaryType.FIXED)
+        builder.set_boundary(Side.RIGHT, BoundaryType.FIXED)
 
         builder.set_fractional_settings(0.6, self._resolution)
         model = builder.create()
@@ -518,22 +525,55 @@ class BeamStaticsCaseTest(unittest.TestCase):
         with Profiler(False):
             result = self._solve(model)
 
-        expected_max = -0.002668
+        expected_max = -0.000887
 
         np.testing.assert_allclose(min(result), [expected_max], atol=1e-5)
+
+    def test_DownToUp_SimplySupportedAndAlphaAlmostOne_ReturnCorrectDisplacement(self):
+        builder = self._create_predefined_builder()
+        builder.set_analysis_strategy(AnalysisStrategy.DOWN_TO_UP)
+        builder.set_boundary(Side.LEFT, BoundaryType.HINGE)
+        builder.set_boundary(Side.RIGHT, BoundaryType.HINGE)
+        builder.set_fractional_settings(0.999999999999, self._resolution)
+
+        model = builder.create()
+
+        result = self._solve(model)
+
+        L = self._length
+        L1, L2 = 0.5*L, 0.5*L
+        E = 30e6
+        I = 0.25*0.2**3/12.
+        P = -100.
+        expected_max_theoretical = P*L2*(3.*L**2 - 4.*L2**2) / (48*E*I)
+        expected_max = -0.002672
+        np.testing.assert_allclose([expected_max], min(result), atol=1e-6)
+
+    def test_DownToUp_SimplySupportedAndAlpha06_ReturnCorrectDisplacement(self):
+        builder = self._create_predefined_builder()
+        builder.set_analysis_strategy(AnalysisStrategy.DOWN_TO_UP)
+        builder.set_boundary(Side.LEFT, BoundaryType.HINGE)
+        builder.set_boundary(Side.RIGHT, BoundaryType.HINGE)
+        builder.set_fractional_settings(0.6, self._resolution)
+        model = builder.create()
+
+        result = self._solve(model)
+        plot(result)
+        expected_max = -0.035608
+        np.testing.assert_allclose([expected_max], min(result), atol=1e-6)
 
     def _create_predefined_builder(self):
         return (
             builder.create('beam1d', self._length, self._node_number)
             .set_analysis_type('SYSTEM_OF_LINEAR_EQUATIONS')
-            .set_boundary(builder.Side.LEFT, builder.BoundaryType.FIXED)
-            .set_boundary(builder.Side.RIGHT, builder.BoundaryType.FIXED)
             .set_load(builder.LoadType.POINT, ordinate=0.5, magnitude=-100, )
             .add_virtual_nodes(8, 8)
             .set_length_scale_controller('vanish', self._length_scale, min_value=self._span)
             .set_young_modulus_controller('uniform', 30e6)
             .set_moment_of_inertia_controller('uniform', 0.25*0.2**3/12.)
             .set_stiffness_operator_strategy('minimize_virtual_layer')
+            .set_virtual_boundary_strategy(FractionalVirtualBoundaryStrategy.BASED_ON_FOURTH_DERIVATIVE)
+            .set_fractional_operator_pattern(central="FCB", backward="BBB", forward="FFF")
         )
 
     @staticmethod

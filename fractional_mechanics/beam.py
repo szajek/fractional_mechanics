@@ -7,19 +7,17 @@ __all__ = 'create_beam_stiffness_stencils_factory', 'create_beam_stiffness_opera
 
 
 def create_beam_stiffness_operators_factory(stencils):
-    A = create_beam_stiffness_operator_factory(stencils['A'], tag='A')
-    B = create_beam_stiffness_operator_factory(stencils['B'], A, tag='B')
-    C = create_beam_stiffness_operator_factory(stencils['C'], B, tag='C')
-    D = create_beam_stiffness_operator_factory(stencils['D'], C, tag='D')
+    A = create_beam_stiffness_operator_factory(stencils['A'])
+    B = create_beam_stiffness_operator_factory(stencils['B'], A)
+    C = create_beam_stiffness_operator_factory(stencils['C'], B)
+    D = create_beam_stiffness_operator_factory(stencils['D'], C)
     return {'A': A, 'B': B, 'C': C, 'D': D}
 
 
-def create_beam_stiffness_operator_factory(stencil_factory, element=None, tag=''):
-    def create(point, t):
-        # print(tag, point.x, stencil_factory(point))
+def create_beam_stiffness_operator_factory(stencil_factory, element=None):
+    def create(point):
         return fdm.Operator(stencil_factory(point), element if element else None)
-
-    return fdm.DynamicElement(lambda point: create(point, tag))
+    return fdm.DynamicElement(lambda point: create(point))
 
 
 def create_beam_stiffness_stencils_factory(integration_method, base_stencils, settings_factory):
