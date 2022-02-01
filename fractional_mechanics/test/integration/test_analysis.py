@@ -433,7 +433,7 @@ class Beam1dStatics21nodesTest(unittest.TestCase):
 class Beam1dStatics101nodesTest(unittest.TestCase):
     def setUp(self):
         self._length = 1.
-        self._node_number = 101
+        self._node_number = 401
         self._span = self._length/float(self._node_number - 1)
 
     def test_DownToUp_AlphaAlmostOne_ReturnCorrectDisplacement(self):
@@ -456,7 +456,8 @@ class Beam1dStatics101nodesTest(unittest.TestCase):
         builder.set_fractional_settings(0.8, 3)
         model = builder.create()
 
-        result = self._solve(model)
+        with Profiler(True):
+            result = self._solve(model)
 
         E = J = q = 1.
         expected_max_classical = -1./384.*q*self._length**4/(E*J)
@@ -522,7 +523,7 @@ class BeamStaticsCaseTest(unittest.TestCase):
         builder.set_fractional_settings(0.6, self._resolution)
         model = builder.create()
 
-        with Profiler(False):
+        with Profiler(True):
             result = self._solve(model)
 
         expected_max = -0.000887
