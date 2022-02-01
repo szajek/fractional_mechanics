@@ -523,7 +523,7 @@ class BeamStaticsCaseTest(unittest.TestCase):
         builder.set_fractional_settings(0.6, self._resolution)
         model = builder.create()
 
-        with Profiler(True):
+        with Profiler(False):
             result = self._solve(model)
 
         expected_max = -0.000887

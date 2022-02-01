@@ -246,9 +246,12 @@ def create_beam_stiffness_operators_up_to_down(data):
     forward_stencils = fractional_mechanics.create_beam_stiffness_stencils_factory(
         data.integration_method, forward_base_stencils, settings_builder)
 
-    central_operators = fractional_mechanics.create_beam_stiffness_operators_factory(central_stencils)
-    backward_operators = fractional_mechanics.create_beam_stiffness_operators_factory(backward_stencils)
-    forward_operators = fractional_mechanics.create_beam_stiffness_operators_factory(forward_stencils)
+    central_operators = fractional_mechanics.create_beam_stiffness_operators_factory(
+        central_stencils, settings_builder)
+    backward_operators = fractional_mechanics.create_beam_stiffness_operators_factory(
+        backward_stencils, settings_builder)
+    forward_operators = fractional_mechanics.create_beam_stiffness_operators_factory(
+        forward_stencils, settings_builder)
 
     def create_operator(operators):
         return fdm.Number(E) * fdm.Number(I) * operators['D']
@@ -476,7 +479,7 @@ def create_beam_statics_bcs(boundary, data):
     central_stencils = fractional_mechanics.create_beam_stiffness_stencils_factory(
         data.integration_method, central_base_stencils, settings_builder)
 
-    operators = fractional_mechanics.create_beam_stiffness_operators_factory(central_stencils)
+    operators = fractional_mechanics.create_beam_stiffness_operators_factory(central_stencils, settings_builder)
 
     begin_A_scheme = operators['A'].expand(begin_node)
     end_A_scheme = operators['A'].expand(end_node)

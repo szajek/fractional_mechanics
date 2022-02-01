@@ -192,7 +192,7 @@ class COperatorFactoryTest(TestSuite):
 
 class DOperatorFactoryTest(TestSuite):
     def test_Create_AlphaOne_ReturnAsForClassicDerivative(self):
-        settings_factory = self.fake_settings_factory(fractulus.Settings(0.99999, 0.1, 3))
+        settings_factory = self.fake_settings_factory(fractulus.Settings(0.999999, 0.1, 3))
         factory = self.create(settings_factory, span=1.)
 
         result = factory(Point(0.))
@@ -310,4 +310,4 @@ def _create_operator_factory(integration_method, span, settings_factory):
     }
     stencils = fractional_mechanics.beam.create_beam_stiffness_stencils_factory(
         integration_method, base_stencils, settings_factory)
-    return fractional_mechanics.beam.create_beam_stiffness_operators_factory(stencils)
+    return fractional_mechanics.beam.create_beam_stiffness_operators_factory(stencils, settings_factory)
