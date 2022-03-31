@@ -26,20 +26,28 @@ def create_beam_stiffness_operator_factory(settings_factory, stencil_factory, el
 
 
 def create_beam_stiffness_stencils_factory(integration_method, base_stencils, settings_factory):
-    def operator_factory(factory, base_stencil):
+    def operator_factory(factory, base_stencil, cached=True):
         def create(point):
             return fdm.Operator(factory(point), base_stencil).to_stencil(fdm.Point(0.))
 
         def id_builder(point):
             return settings_factory(point)
 
-        return fdm.utils.create_cached_factory(create, id_builder)
+        if cached:
+            return fdm.utils.create_cached_factory(create, id_builder)
+        else:
+            return create
+
+    A_stencil_factory = create_A_stencil_factory(integration_method, settings_factory)
+    B_stencil_factory = create_B_stencil_factory(integration_method, settings_factory)
+    C_stencil_factory = create_C_stencil_factory(integration_method, settings_factory)
+    D_stencil_factory = create_D_stencil_factory(integration_method, settings_factory)
 
     return {
-        'A': operator_factory(create_A_stencil_factory(integration_method, settings_factory), base_stencils['A']),
-        'B': operator_factory(create_B_stencil_factory(integration_method, settings_factory), base_stencils['B']),
-        'C': operator_factory(create_C_stencil_factory(integration_method, settings_factory), base_stencils['C']),
-        'D': operator_factory(create_D_stencil_factory(integration_method, settings_factory), base_stencils['D']),
+        'A': operator_factory(A_stencil_factory, base_stencils['A'], cached=False),
+        'B': operator_factory(B_stencil_factory, base_stencils['B'], cached=False),
+        'C': operator_factory(C_stencil_factory, base_stencils['C'], cached=False),
+        'D': operator_factory(D_stencil_factory, base_stencils['D'], cached=False),
     }
 
 

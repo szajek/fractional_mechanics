@@ -490,7 +490,7 @@ class BeamStaticsCaseTest(unittest.TestCase):
     def setUp(self):
         self._length = 2.
         self._node_number = 81
-        self._length_scale = 0.2
+        self._length_scale = 0.2  # note: in the article lf/L is provided; so lf/L = 0.1 is equivalent of 0.2 here
         self._span = self._length/float(self._node_number - 1)
         self._resolution = int(self._length_scale/self._span/2.)
 
@@ -547,7 +547,7 @@ class BeamStaticsCaseTest(unittest.TestCase):
         I = 0.25*0.2**3/12.
         P = -100.
         expected_max_theoretical = P*L2*(3.*L**2 - 4.*L2**2) / (48*E*I)
-        expected_max = -0.00186
+        expected_max = -0.003372
         np.testing.assert_allclose([expected_max], min(result), atol=1e-6)
 
     def test_DownToUp_SimplySupportedAndAlpha06_ReturnCorrectDisplacement(self):
@@ -555,12 +555,13 @@ class BeamStaticsCaseTest(unittest.TestCase):
         builder.set_analysis_strategy(AnalysisStrategy.DOWN_TO_UP)
         builder.set_boundary(Side.LEFT, BoundaryType.HINGE)
         builder.set_boundary(Side.RIGHT, BoundaryType.HINGE)
-        builder.set_fractional_settings(0.6, self._resolution)
+        builder.set_fractional_settings(0.8, self._resolution)
         model = builder.create()
 
-        result = self._solve(model)
+        with Profiler(False):
+            result = self._solve(model)
 
-        expected_max = -0.037397
+        expected_max = -0.003458
         np.testing.assert_allclose([expected_max], min(result), atol=1e-6)
 
     def _create_predefined_builder(self):
@@ -569,6 +570,7 @@ class BeamStaticsCaseTest(unittest.TestCase):
             .set_analysis_type('SYSTEM_OF_LINEAR_EQUATIONS')
             .set_load(builder.LoadType.POINT, ordinate=0.5, magnitude=-100, )
             .add_virtual_nodes(8, 8)
+            .add_middle_nodes()
             .set_length_scale_controller('vanish', self._length_scale, min_value=self._span)
             .set_young_modulus_controller('uniform', 30e6)
             .set_moment_of_inertia_controller('uniform', 0.25*0.2**3/12.)

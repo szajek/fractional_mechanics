@@ -288,25 +288,25 @@ def create_beam_stiffness_operators_down_to_up(data):
     EI = fdm.Number(E) * fdm.Number(I)
 
     central_base_stencils = {
-        'A': EI*fdm.Stencil.central(span),
+        'A': fdm.Stencil.central(span),
         'B': fdm.Stencil.central(span),
         'C': fdm.Stencil.central(span),
         'D': fdm.Stencil.central(span),
     }
     wide_central_base_stencils = {
-        'A': EI*fdm.Stencil.central(2.*span),
+        'A': fdm.Stencil.central(2.*span),
         'B': fdm.Stencil.central(2.*span),
         'C': fdm.Stencil.central(2.*span),
         'D': fdm.Stencil.central(2.*span),
     }
     backward_base_stencils = {
-        'A': EI*fdm.Stencil.backward(span),
+        'A': fdm.Stencil.backward(span),
         'B': fdm.Stencil.backward(span),
         'C': fdm.Stencil.backward(span),
         'D': fdm.Stencil.backward(span),
     }
     forward_base_stencils = {
-        'A': EI*fdm.Stencil.forward(span),
+        'A': fdm.Stencil.forward(span),
         'B': fdm.Stencil.forward(span),
         'C': fdm.Stencil.forward(span),
         'D': fdm.Stencil.forward(span),
@@ -391,13 +391,13 @@ def create_beam_stiffness_operators_down_to_up(data):
 
     if data.strategy == 'minimize_virtual_layer':
         return [
-            fdm.DynamicElement(build_dispatcher(a_rules, 'A')),
+            EI*fdm.DynamicElement(build_dispatcher(a_rules, 'A')),
             fdm.DynamicElement(build_dispatcher(b_rules, 'B')),
             fdm.DynamicElement(build_dispatcher(c_rules, 'C')),
             fdm.DynamicElement(build_dispatcher(d_rules, 'D')),
         ]
     else:  # standard
-        return central_stencils
+        raise NotImplementedError
 
 
 def create_fractional_strain_operator_builder(span, integration_method, settings_builder):
