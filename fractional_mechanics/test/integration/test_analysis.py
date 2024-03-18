@@ -243,37 +243,37 @@ class Truss1dStatics31nodesTest(unittest.TestCase):
         result = self._solve(model).displacement
 
         expected = np.array([
-            [-0.],
-            [0.00369007],
-            [0.00801109],
-            [0.0127756],
-            [0.01789321],
-            [0.0233234],
-            [0.02897823],
-            [0.03473435],
-            [0.0404404],
-            [0.04591583],
-            [0.05095925],
-            [0.05536753],
-            [0.05895956],
-            [0.06159406],
-            [0.06317172],
-            [0.0636338],
-            [0.06296574],
-            [0.06119491],
-            [0.05837687],
-            [0.0545781],
-            [0.0499014],
-            [0.04452662],
-            [0.03870359],
-            [0.03270816],
-            [0.02678991],
-            [0.02113941],
-            [0.01588936],
-            [0.01111796],
-            [0.0068419],
-            [0.00308798],
             [0.],
+            [0.00368931],
+            [0.00800889],
+            [0.01277129],
+            [0.0178864],
+            [0.02331404],
+            [0.02896669],
+            [0.03472139],
+            [0.04042694],
+            [0.04590278],
+            [0.05094714],
+            [0.05535622],
+            [0.0589481],
+            [0.06158082],
+            [0.0631552],
+            [0.06361348],
+            [0.062942],
+            [0.0611683],
+            [0.05834649],
+            [0.05453923],
+            [0.04984544],
+            [0.04444557],
+            [0.0385958],
+            [0.03258147],
+            [0.02666095],
+            [0.02102881],
+            [0.01581149],
+            [0.01107491],
+            [0.006826],
+            [0.00308594],
+            [-0.],
         ])
 
         np.testing.assert_array_almost_equal(expected, result)
@@ -446,7 +446,7 @@ class Beam1dStatics101nodesTest(unittest.TestCase):
 
         E = J = q = 1.
         expected_max_theoretical = -1./384.*q*self._length**4/(E*J)
-        expected_max = -0.002765
+        expected_max = -0.002738
 
         np.testing.assert_allclose(min(result), [expected_max], atol=1e-5)
 
@@ -461,7 +461,7 @@ class Beam1dStatics101nodesTest(unittest.TestCase):
 
         E = J = q = 1.
         expected_max_classical = -1./384.*q*self._length**4/(E*J)
-        expected_max = -0.002553  # it agrees with up down when denser mesh
+        expected_max = -0.002526  # it agrees with up down when denser mesh
 
         np.testing.assert_allclose(min(result), [expected_max], atol=1e-5)
 
@@ -561,7 +561,7 @@ class BeamStaticsCaseTest(unittest.TestCase):
         with Profiler(False):
             result = self._solve(model)
 
-        expected_max = -0.003458
+        expected_max = -0.003439
         np.testing.assert_allclose([expected_max], min(result), atol=1e-6)
 
     def _create_predefined_builder(self):

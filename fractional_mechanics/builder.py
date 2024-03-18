@@ -378,7 +378,6 @@ def create_beam_stiffness_operators_down_to_up(data):
     c_range = hn
     c_rules = Rules(
         null=left_virtual_nodes[-2:] + right_virtual_nodes[-2:],
-        forward=left_virtual_nodes[:c_range] + real_nodes[:c_range],
         backward=right_virtual_nodes[:c_range] + real_nodes[-c_range:],
     )
     scheme_null = left_virtual_nodes + right_virtual_nodes
@@ -391,8 +390,8 @@ def create_beam_stiffness_operators_down_to_up(data):
 
     if data.strategy == 'minimize_virtual_layer':
         return [
-            EI*fdm.DynamicElement(build_dispatcher(a_rules, 'A')),
-            fdm.DynamicElement(build_dispatcher(b_rules, 'B')),
+            fdm.DynamicElement(build_dispatcher(a_rules, 'A')),
+            EI*fdm.DynamicElement(build_dispatcher(b_rules, 'B')),
             fdm.DynamicElement(build_dispatcher(c_rules, 'C')),
             fdm.DynamicElement(build_dispatcher(d_rules, 'D')),
         ]
