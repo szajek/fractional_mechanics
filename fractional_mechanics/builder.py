@@ -1,8 +1,24 @@
+import enum
+import collections
+
 import fdm
-from fdm.builder import *
-from fdm.utils import create_cached_factory
 import fractional_mechanics
 import fractulus
+
+from fdm.builder import (
+    create_truss1d_mass_operator, create_beam1d_mass_operator, Builder1d, Strategy,
+    UserValueController, static_boundary, Side, BoundaryType, VirtualBoundaryStrategy,
+    dynamic_boundary
+)
+from fdm.utils import (
+    create_cached_factory
+)
+from fdm.analysis import (
+    AnalysisStrategy
+)
+from fdm.geometry import (
+    Point
+)
 
 
 class FractionalVirtualBoundaryStrategy(enum.Enum):
@@ -28,6 +44,7 @@ def create_for_truss_1d(length, nodes_number):
         AnalysisStrategy.UP_TO_DOWN: create_truss_stiffness_operators_up_to_down,
         AnalysisStrategy.DOWN_TO_UP: create_truss_stiffness_operators_down_to_up,
     })
+    builder.set_mass_factory(create_truss1d_mass_operator)
     builder.set_complex_boundary_factory(create_complex_truss_bcs())
     return builder
 
@@ -38,6 +55,7 @@ def create_for_beam_1d(length, nodes_number):
         AnalysisStrategy.UP_TO_DOWN: create_beam_stiffness_operators_up_to_down,
         AnalysisStrategy.DOWN_TO_UP: create_beam_stiffness_operators_down_to_up,
     })
+    builder.set_mass_factory(create_beam1d_mass_operator)
     builder.set_complex_boundary_factory(create_complex_beam_bcs())
     return builder
 
@@ -195,8 +213,10 @@ def create_truss_stiffness_operators_up_to_down(data):
 
     def dispatch(point):
         return {
-            Point(0. + span): operators['forward_central'],
-            Point(length - span): operators['backward_central'],
+            Point(0.): operators['forward_central'],
+            # Point(0. + span): operators['forward_central'],
+            Point(length): operators['backward_central'],
+            # Point(length - span): operators['backward_central'],
         }.get(point, operators['central'])
 
     if data.strategy == 'minimize_virtual_layer':
@@ -486,11 +506,17 @@ def create_beam_statics_bcs(boundary, data):
     begin_B_scheme = operators['B'].expand(begin_node)
     end_B_scheme = operators['B'].expand(end_node)
 
+    begin_C_scheme = operators['C'].expand(begin_node)
+    end_C_scheme = operators['C'].expand(end_node)
+
     begin_rotation_zero = static_boundary(begin_A_scheme, 0.)
     end_rotation_zero = static_boundary(end_A_scheme, 0.)
 
     begin_moment_zero = static_boundary(begin_B_scheme, 0.)
     end_moment_zero = static_boundary(end_B_scheme, 0.)
+
+    begin_shear_zero = static_boundary(begin_C_scheme, 0.)
+    end_shear_zero = static_boundary(end_C_scheme, 0.)
 
     bcs = []
 
@@ -507,6 +533,11 @@ def create_beam_statics_bcs(boundary, data):
             begin_displacement_fixed,
             begin_moment_zero,
         ]
+    elif left_type == BoundaryType.FREE:
+        bcs += [
+            begin_moment_zero,
+            begin_shear_zero
+        ]
 
     if right_type == BoundaryType.FIXED:
         bcs += [
@@ -517,6 +548,11 @@ def create_beam_statics_bcs(boundary, data):
         bcs += [
             end_displacement_fixed,
             end_moment_zero,
+        ]
+    elif right_type == BoundaryType.FREE:
+        bcs += [
+            end_moment_zero,
+            end_shear_zero
         ]
 
     def p(s, base=0.):
@@ -537,9 +573,11 @@ def create_beam_statics_bcs(boundary, data):
     return bcs
 
 
-def create_beam_eigenproblem_bc(length, span, mesh, boundary):  # todo:
-    pass
-    return {}
+def create_beam_eigenproblem_bc(boundary, data):
+    statics_bcs = create_beam_statics_bcs(boundary, data)
+    return [
+        dynamic_boundary(bc.scheme, fdm.Scheme({})) for bc in statics_bcs
+    ]
 
 
 def create_complex_truss_bcs():
@@ -601,8 +639,8 @@ def create_truss_eigenproblem_bc(boundary, data):
     mesh = data.mesh
 
     begin_node, end_node = mesh.real_nodes[0], mesh.real_nodes[-1]
-    begin_displacement_fixed = dynamic_boundary(fdm.Scheme({begin_node: 1.}), fdm.Scheme({}), replace=begin_node)
-    end_displacement_fixed = dynamic_boundary(fdm.Scheme({end_node: 1.}), fdm.Scheme({}), replace=end_node)
+    begin_displacement_fixed = dynamic_boundary(fdm.Scheme({begin_node: 1.}), fdm.Scheme({}))
+    end_displacement_fixed = dynamic_boundary(fdm.Scheme({end_node: 1.}), fdm.Scheme({}))
 
     bcs = []
     if boundary[Side.LEFT].type == BoundaryType.FIXED:
